@@ -2438,11 +2438,11 @@ skip_file_scan:
         sma_free_scanned, sma_free_tails);
     if (manual_chunk_size > 0) fprintf(stderr, "I/O chunk size: %ld KiB (manually set)\n", manual_chunk_size >> 10);
     else {
-#ifndef ON_WINDOWS
+#ifdef __linux__
       fprintf(stderr, "I/O chunk size: %" PRIuMAX " KiB (%s)\n", (uintmax_t)(auto_chunk_size >> 10), (pci.l1 + pci.l1d) != 0 ? "dynamically sized" : "default size");
 #else
       fprintf(stderr, "I/O chunk size: %" PRIuMAX " KiB (default size)\n", (uintmax_t)(auto_chunk_size >> 10));
-#endif
+#endif /* __linux__ */
     }
 #ifdef ON_WINDOWS
  #ifndef NO_HARDLINKS
