@@ -1120,6 +1120,117 @@ error_overflow:
 }
 
 
+/* Hash and compare two candidates at once
+ * WARNING: file sizes MUST be equal */
+static int hash_and_compare(const file_t * const restrict file1,
+		const file_t * const restrict file2)
+{
+  off_t fsize;
+  /* This is an array because we return a pointer to it */
+  static jdupes_hash_t hash1[1], hash2[1];
+  static jdupes_hash_t *chunk1 = NULL, *chunk2 = NULL;
+  FILE *fp1, *fp2;
+  int check = 0;
+  XXH64_state_t *xxhstate1, *xxhstate2;
+
+  if (file1 == NULL || file1->d_name == NULL || file2 == NULL
+		  || file2->d_name == NULL) nullptr("hash_and_compare()");
+  if (file1->size != file2->size) goto error_size_mismatch;
+  LOUD(fprintf(stderr, "hash_and_compare('%s', '%s')\n", file1->d_name, file2->d_name);)
+
+  /* Allocate on first use */
+  if (chunk1 == NULL) {
+    chunk1 = (jdupes_hash_t *)string_malloc(auto_chunk_size);
+    chunk2 = (jdupes_hash_t *)string_malloc(auto_chunk_size);
+    if (!chunk1 || !chunk2) oom("hash_and_compare() chunks");
+  }
+
+  /* Get the file size. If we can't read it, bail out early */
+  if (file1->size == -1 || file2->size == -1) {
+    LOUD(fprintf(stderr, "hash_and_compare: not hashing because stat() info is bad\n"));
+    return NULL;
+  }
+  fsize = file1->size;  /* files always match in size if they make it this far */
+
+  /* Do not read more than the requested number of bytes */
+  if (max_read > 0 && fsize > (off_t)max_read)
+    fsize = (off_t)max_read;
+
+  /* Initialize the hash and file read parameters (with filehash_partial skipped)
+   *
+   * If we already hashed the first chunk of this file, we don't want to
+   * wastefully read and hash it again, so skip the first chunk and use
+   * the computed hash for that chunk as our starting point.
+   */
+
+  *hash = 0;
+  errno = 0;
+#ifdef UNICODE
+  if (!M2W(file1->d_name, wstr)) file1 = NULL;
+  else fp1 = _wfopen(wstr, FILE_MODE_RO);
+  if (!M2W(file2->d_name, wstr)) file1 = NULL;
+  else fp2 = _wfopen(wstr, FILE_MODE_RO);
+#else
+  fp1 = fopen(file1->d_name, FILE_MODE_RO);
+  fp2 = fopen(file2->d_name, FILE_MODE_RO);
+#endif
+  if (fp1 == NULL) {
+    fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, fp1->d_name, 1);
+    return NULL;
+  }
+  if (fp2 == NULL) {
+    fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, fp2->d_name, 1);
+    return NULL;
+  }
+
+  xxhstate1 = XXH64_createState();
+  xxhstate2 = XXH64_createState();
+  if (xxhstate1 == NULL) nullptr("xxhstate");
+  if (xxhstate2 == NULL) nullptr("xxhstate");
+  XXH64_reset(xxhstate1, 0);
+  XXH64_reset(xxhstate2, 0);
+
+  /* Read the file in CHUNK_SIZE chunks until we've read it all. */
+  while (fsize > 0) {
+    size_t bytes_to_read;
+
+    if (interrupt) return 0;
+    bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
+    if (fread((void *)chunk, bytes_to_read, 1, file) != 1) {
+      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, checkfile->d_name, 1);
+      fclose(file);
+      return NULL;
+    }
+
+    XXH64_update(xxhstate, chunk, bytes_to_read);
+
+    if ((off_t)bytes_to_read > fsize) break;
+    else fsize -= (off_t)bytes_to_read;
+
+    if (!ISFLAG(flags, F_HIDEPROGRESS)) {
+      check++;
+      if (check > CHECK_MINIMUM) {
+        update_progress("hashing", (int)(((checkfile->size - fsize) * 100) / checkfile->size));
+        check = 0;
+      }
+    }
+  }
+
+  fclose(file);
+
+  *hash = XXH64_digest(xxhstate1);
+  *hash = XXH64_digest(xxhstate2);
+  XXH64_freeState(xxhstate1);
+  XXH64_freeState(xxhstate2);
+
+  LOUD(fprintf(stderr, "hash_and_compare: returning hash: 0x%016jx\n", (uintmax_t)*hash));
+  return 1;
+error_size_mismatch:
+  fprintf(stderr, "internal error: hash_and_compare: file sizes do not match\n");
+  return -1;
+}
+
+
 /* Hash part or all of a file */
 static jdupes_hash_t *get_filehash(const file_t * const restrict checkfile,
                 const size_t max_read)
