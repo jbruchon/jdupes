@@ -36,9 +36,13 @@ Usage: fdupes [options] DIRECTORY...
                        with -s or --symlinks, or when specifying a
                        particular directory more than once; refer to the
                        fdupes documentation for additional information
- -N --noprompt         together with --delete, preserve the first file in
+ -N --noprompt         together with --delete, preserve one file in
                        each set of duplicates and delete the rest without
                        prompting the user
+ -K --keep=NUM         together with --noprompt, preserve K-th file in
+                       each set of duplicates.  Values >0 search ascending, vs
+                       values <0 search descending (NUM=1; keep 1st, default)
+                       whereas (NUM=-1, keep last)
  -p --permissions      don't consider files with different owner/group or
                        permission bits as duplicates
  -o --order=BY         select sort order for output, linking and deleting; by

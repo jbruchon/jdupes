@@ -881,7 +881,7 @@ static void printmatches(file_t * restrict files)
 }
 
 
-static void deletefiles(file_t *files, int prompt, FILE *tty)
+static void deletefiles(file_t *files, long position, FILE *tty)
 {
   int counter;
   int groups = 0;
@@ -931,22 +931,24 @@ static void deletefiles(file_t *files, int prompt, FILE *tty)
       counter = 1;
       dupelist[counter] = files;
 
-      if (prompt) printf("[%d] %s\n", counter, files->d_name);
+      if (!position) printf("[%d] %s\n", counter, files->d_name);
 
       tmpfile = files->duplicates;
 
       while (tmpfile) {
 	dupelist[++counter] = tmpfile;
-	if (prompt) printf("[%d] %s\n", counter, tmpfile->d_name);
+	if (!position) printf("[%d] %s\n", counter, tmpfile->d_name);
 	tmpfile = tmpfile->duplicates;
       }
 
-      if (prompt) printf("\n");
+      if (!position) printf("\n");
 
-      /* preserve only the first file */
-      if (!prompt) {
-        preserve[1] = 1;
-        for (x = 2; x <= counter; x++) preserve[x] = 0;
+      /* preserve only the position-th file. >0 = ASC, <0 = DSC */
+      if (position) {
+        int keep = position < 0 ? counter-(position+1) : position;
+        if (keep < 1) keep = 1; else if (keep > counter) keep = counter;
+        memset(&preserve[1], 0, counter*sizeof(*preserve));
+        preserve[keep] = 1;
       } else do {
         /* prompt for files to preserve */
 	printf("Set %d of %d: keep which files? (1 - %d, [a]ll)",
@@ -1335,9 +1337,13 @@ static inline void help_text()
   printf("                  \twith -s or --symlinks, or when specifying a\n");
   printf("                  \tparticular directory more than once; refer to the\n");
   printf("                  \tfdupes documentation for additional information\n");
-  printf(" -N --noprompt    \ttogether with --delete, preserve the first file in\n");
+  printf(" -N --noprompt    \ttogether with --delete, preserve one file in\n");
   printf("                  \teach set of duplicates and delete the rest without\n");
   printf("                  \tprompting the user\n");
+  printf(" -K --keep=NUM    \ttogether with --noprompt, preserve K-th file in\n");
+  printf("                  \teach set of duplicates.  Values >0 search ascending, vs\n");
+  printf("                  \tvalues <0 search descending (NUM=1; keep 1st, default)\n");
+  printf("                  \twhereas (NUM=-1, keep last)\n");
 #ifndef NO_PERMS
   printf(" -p --permissions \tdon't consider files with different owner/group or\n");
   printf("                  \tpermission bits as duplicates\n");
@@ -1367,6 +1373,7 @@ int main(int argc, char **argv) {
   char **oldargv;
   int firstrecurse;
   ordertype_t ordertype = ORDER_TIME;
+  int position = 1;
   int delay = DELAY_COUNT;
   char *endptr;
 
@@ -1396,6 +1403,7 @@ int main(int argc, char **argv) {
     { "version", 0, 0, 'v' },
     { "help", 0, 0, 'h' },
     { "noprompt", 0, 0, 'N' },
+    { "keep", 1, 0, 'K' },
     { "summarize", 0, 0, 'm'},
     { "summary", 0, 0, 'm' },
 #ifndef NO_PERMS
@@ -1415,7 +1423,7 @@ int main(int argc, char **argv) {
   oldargv = cloneargs(argc, argv);
 
   while ((opt = GETOPT(argc, argv,
-  "frRqQ1SsHLnx:AdvhNmpo:O"
+  "frRqQ1SsHLnx:AdvhNK:mpo:O"
 #ifndef OMIT_GETOPT_LONG
           , long_options, NULL
 #endif
@@ -1520,6 +1528,13 @@ int main(int argc, char **argv) {
       exit(1);
     case 'N':
       SETFLAG(flags, F_NOPROMPT);
+      break;
+    case 'K':
+      position = strtol(optarg, NULL, 10);
+      if (!position || errno == ERANGE) {
+        errormsg("invalid value for --keep: '%s'\n", optarg);
+        exit(1);
+      }
       break;
     case 'm':
       SETFLAG(flags, F_SUMMARIZEMATCHES);
@@ -1668,8 +1683,8 @@ skip_full_check:
   if (!ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "\r%60s\r", " ");
 
   if (ISFLAG(flags, F_DELETEFILES)) {
-    if (ISFLAG(flags, F_NOPROMPT)) deletefiles(files, 0, 0);
-    else deletefiles(files, 1, stdin);
+    if (ISFLAG(flags, F_NOPROMPT)) deletefiles(files, position, 0);
+    else deletefiles(files, 0, stdin);
   } else {
 #ifndef NO_HARDLINKS
     if (ISFLAG(flags, F_HARDLINKFILES)) {
