@@ -1,19 +1,23 @@
-Introduction
---------------------------------------------------------------------------
+## Introduction
+
 jdupes is a program for identifying and taking actions upon duplicate
 files. This fork known as 'jdupes' is heavily modified from and improved
-over the original. See CHANGES for details.
+over the original. See [CHANGES](https://github.com/jbruchon/jdupes/blob/master/CHANGES.md) for details.
 
-A WORD OF WARNING: jdupes IS NOT a drop-in compatible replacement for
+>**A WORD OF WARNING**: jdupes **IS NOT** a drop-in compatible replacement for
 fdupes! Do not blindly replace fdupes with jdupes in scripts and expect
 everything to work the same way. Option availability and meanings differ
-between the two programs. For example, the -I switch in jdupes means
+between the two programs. For example, the `-I` switch in jdupes means
 "isolate" and blocks intra-argument matching, while in fdupes it means
 "immediately delete files during scanning without prompting the user."
 
+#### Installation
 
-Why use jdupes instead of the original fdupes or other forks?
---------------------------------------------------------------------------
+See [installation guide](https://github.com/jbruchon/jdupes/blob/master/INSTALL.md).
+
+
+## Why use jdupes instead of the original fdupes or other forks?
+
 The biggest reason is raw speed. In testing on various data sets, jdupes is
 over 7 times faster than fdupes-1.51 on average.
 
@@ -34,7 +38,7 @@ way is always chosen.
 jdupes includes features that are not found in fdupes. Examples of
 such features include btrfs block-level deduplication and control over
 which file is kept when a match set is automatically deleted. jdupes is
-not afraid of dropping features of low value; a prime example is the -1
+not afraid of dropping features of low value; a prime example is the `-1`
 switch which outputs all matches in a set on one line, a feature which was
 found to be useless in real-world tests and therefore thrown out.
 
@@ -47,9 +51,9 @@ it was originally derived, there is no guarantee that it will continue to
 maintain such compatibility in the future.
 
 
-What jdupes is not: a similar (but not identical) file finding tool
---------------------------------------------------------------------------
-Please note that jdupes ONLY works on 100% exact matches. It does not have
+## What jdupes is not: a similar (but not identical) file finding tool
+
+Please note that jdupes **ONLY** works on 100% exact matches. It does not have
 any sort of "similarity" matching, nor does it know anything about any
 specific file formats such as images or sounds. Something as simple as a
 change in embedded metadata such as the ID3 tags in an MP3 file or the EXIF
@@ -62,8 +66,9 @@ using knowledge of their file formats to help. There are no plans to add
 this type of matching to jdupes.
 
 
-Usage
---------------------------------------------------------------------------
+## Usage
+
+```
 Usage: jdupes [options] DIRECTORY...
 
  -A --nohidden          exclude hidden files from consideration
@@ -104,13 +109,14 @@ Usage: jdupes [options] DIRECTORY...
     --xsize=+SIZE       '+' specified before SIZE, exclude size > SIZE
                         K/M/G size suffixes can be used (case-insensitive)
  -Z --softabort         If the user aborts (i.e. CTRL-C) act on matches so far
+ ```
 
 Duplicate files are listed together in groups with each file displayed on a
 Separate line. The groups are then separated from each other by blank lines.
 
-When using -d or --delete, care should be taken to insure against
+When using `-d` or `--delete`, care should be taken to insure against
 accidental data loss. While no information will be immediately
-lost, using this option together with -s or --symlink can lead
+lost, using this option together with `-s` or `--symlink` can lead
 to confusing information being presented to the user when prompted
 for files to preserve. Specifically, a user could accidentally
 preserve a symlink while deleting the file it points to. A similar
@@ -119,31 +125,31 @@ once. All files within that directory will be listed as their own
 duplicates, leading to data loss should a user preserve a file
 without its "duplicate" (the file itself!).
 
-The -I/--isolate option attempts to block matches that are contained in
+The `-I` or `--isolate` option attempts to block matches that are contained in
 the same specified directory parameter on the command line. Due to the
 underlying nature of the jdupes algorithm, a lot of matches will be
 blocked by this option that probably should not be. This code could use
 improvement.
 
 
-Hard linking status symbols and behavior
---------------------------------------------------------------------------
+## Hard linking status symbols and behavior
+
 A set of arrows are used in hard linking to show what action was taken on
-each link candidate. These arrows are as follows:
+each link candidate.  
+These arrows are as follows:  
+`---->` File was hard linked to the first file in the duplicate chain
 
-----> File was hard linked to the first file in the duplicate chain
+`-==->` Already a hard link to the first file in the chain
 
--==-> Already a hard link to the first file in the chain
+`-//->` Hard linking failed due to an error during the linking process
 
--//-> Hard linking failed due to an error during the linking process
-
-If your data set has hard linked files and you do not use -L to always
+If your data set has hard linked files and you do not use `-L` to always
 consider them as duplicates, you may still see hard linked files appear
 together in match sets. This is caused by a separate file that matches
 the hard linked files and is the correct behavior.
 
-Microsoft Windows platform-specific notes
---------------------------------------------------------------------------
+## Microsoft Windows platform-specific notes
+
 The Windows port does not support Unicode, only ANSI file names. This is
 because Unicode support on Windows is difficult to add to existing code
 without making it very messy or breaking things. Support is eventually
@@ -156,14 +162,14 @@ file. If more than 1023 links are created for a file, an error results."
 (The number is actually 1024, but they're ignoring the first file.)
 
 
-Contact Information
---------------------------------------------------------------------------
+## Contact Information
+
 For all jdupes inquiries, contact Jody Bruchon <jody@jodybruchon.com>
 Please do NOT contact Adrian Lopez about issues with jdupes!
 
 
-Legal Information
---------------------------------------------------------------------------
+## Legal Information
+
 jdupes is Copyright (C) 2015-2016 by Jody Bruchon
 Derived from the original 'fdupes' (C) 1999-2016 by Adrian Lopez
 Includes jody_hash (C) 2015-2016 Jody Bruchon <jody@jodybruchon.com>
