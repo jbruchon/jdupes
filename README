@@ -153,7 +153,7 @@ each link candidate. These arrows are as follows:
 
 -//-> File linking failed due to an error during the linking process
 
-If your data set has linked files and you do not use -L to always consider
+If your data set has linked files and you do not use -H to always consider
 them as duplicates, you may still see linked files appear together in match
 sets. This is caused by a separate file that matches with linked files
 independently and is the correct behavior. See notes below on the "triangle
