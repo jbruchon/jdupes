@@ -168,11 +168,21 @@ typedef enum {
 /* For interactive deletion input */
 #define INPUT_SIZE 512
 
-/* Per-file information */
+struct _file; /* prototype */
+
+/* Per-file information unique to a filename */
+typedef struct _filename {
+  struct _filename *next;
+  struct _file *file;
+  char *d_name;
+  unsigned int user_order; /* Order of the originating command-line parameter */
+} filename_t;
+
+/* Per-file information unique to an inode */
 typedef struct _file {
   struct _file *duplicates;
   struct _file *next;
-  char *d_name;
+  filename_t *filename;
   dev_t device;
   jdupes_mode_t mode;
   off_t size;
@@ -181,14 +191,15 @@ typedef struct _file {
   hash_t filehash;
   time_t mtime;
   uint32_t flags;  /* Status flags */
-  unsigned int user_order; /* Order of the originating command-line parameter */
 #ifndef NO_PERMS
   uid_t uid;
   gid_t gid;
 #endif
-#ifdef ON_WINDOWS
- #ifndef NO_HARDLINKS
+#ifndef NO_HARDLINKS
+ #ifdef ON_WINDOWS
   DWORD nlink;
+ #else
+  nlink_t nlink;
  #endif
 #endif
 } file_t;
@@ -213,10 +224,10 @@ extern struct stat s;
 
 extern void oom(const char * const restrict msg);
 extern void nullptr(const char * restrict func);
-extern int file_has_changed(file_t * const restrict file);
+extern int file_has_changed(filename_t * const restrict filename);
 extern int getfilestats(file_t * const restrict file);
 extern int getdirstats(const char * const restrict name,
-        jdupes_ino_t * const restrict inode, dev_t * const restrict dev);
+        jdupes_ino_t * const restrict file, dev_t * const restrict dev);
 extern int check_conditions(const file_t * const restrict file1, const file_t * const restrict file2);
 extern unsigned int get_max_dupes(const file_t *files, unsigned int * const restrict max,
 		                unsigned int * const restrict n_files);

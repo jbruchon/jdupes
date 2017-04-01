@@ -15,7 +15,7 @@ extern "C" {
 #include <windows.h>
 
 struct winstat {
-	uint64_t inode;
+	uint64_t file;
 	int64_t size;
 	uint32_t device;
 	uint32_t nlink;

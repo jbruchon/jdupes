@@ -23,6 +23,9 @@ extern void deletefiles(file_t *files, int prompt, FILE *tty)
   unsigned int number, sum, max, x;
   size_t i;
 
+  fprintf(stderr, "chosen action does not support multiple filenames yet - error out rather than breaking anything!\n");
+  exit(EXIT_FAILURE);
+
   groups = get_max_dupes(files, &max, NULL);
 
   max++;
@@ -40,7 +43,7 @@ extern void deletefiles(file_t *files, int prompt, FILE *tty)
       dupelist[counter] = files;
 
       if (prompt) {
-        printf("[%u] ", counter); fwprint(stdout, files->d_name, 1);
+        printf("[%u] ", counter); fwprint(stdout, files->filename->d_name, 1);
       }
 
       tmpfile = files->duplicates;
@@ -48,7 +51,7 @@ extern void deletefiles(file_t *files, int prompt, FILE *tty)
       while (tmpfile) {
         dupelist[++counter] = tmpfile;
         if (prompt) {
-          printf("[%u] ", counter); fwprint(stdout, tmpfile->d_name, 1);
+          printf("[%u] ", counter); fwprint(stdout, tmpfile->filename->d_name, 1);
         }
         tmpfile = tmpfile->duplicates;
       }
@@ -111,26 +114,26 @@ preserve_none:
 
       for (x = 1; x <= counter; x++) {
         if (preserve[x]) {
-          printf("   [+] "); fwprint(stdout, dupelist[x]->d_name, 1);
+          printf("   [+] "); fwprint(stdout, dupelist[x]->filename->d_name, 1);
         } else {
 #ifdef UNICODE
           if (!M2W(dupelist[x]->d_name, wstr)) {
-            printf("   [!] "); fwprint(stdout, dupelist[x]->d_name, 0);
+            printf("   [!] "); fwprint(stdout, dupelist[x]->filename->d_name, 0);
             printf("-- MultiByteToWideChar failed\n");
             continue;
           }
 #endif
-          if (file_has_changed(dupelist[x])) {
-            printf("   [!] "); fwprint(stdout, dupelist[x]->d_name, 0);
+          if (file_has_changed(dupelist[x]->filename)) {
+            printf("   [!] "); fwprint(stdout, dupelist[x]->filename->d_name, 0);
             printf("-- file changed since being scanned\n");
 #ifdef UNICODE
           } else if (DeleteFile(wstr) != 0) {
 #else
-          } else if (remove(dupelist[x]->d_name) == 0) {
+          } else if (remove(dupelist[x]->filename->d_name) == 0) {
 #endif
-            printf("   [-] "); fwprint(stdout, dupelist[x]->d_name, 1);
+            printf("   [-] "); fwprint(stdout, dupelist[x]->filename->d_name, 1);
           } else {
-            printf("   [!] "); fwprint(stdout, dupelist[x]->d_name, 0);
+            printf("   [!] "); fwprint(stdout, dupelist[x]->filename->d_name, 0);
             printf("-- unable to delete file\n");
           }
         }

@@ -46,7 +46,7 @@ int win_stat(const char * const filename, struct winstat * const restrict buf)
   if (hFile == INVALID_HANDLE_VALUE) goto failure;
   if (!GetFileInformationByHandle(hFile, &bhfi)) goto failure2;
 
-  buf->inode = ((uint64_t)(bhfi.nFileIndexHigh) << 32) + (uint64_t)bhfi.nFileIndexLow;
+  buf->file = ((uint64_t)(bhfi.nFileIndexHigh) << 32) + (uint64_t)bhfi.nFileIndexLow;
   buf->size = ((uint64_t)(bhfi.nFileSizeHigh) << 32) + (uint64_t)bhfi.nFileSizeLow;
   timetemp = ((uint64_t)(bhfi.ftCreationTime.dwHighDateTime) << 32) + bhfi.ftCreationTime.dwLowDateTime;
   buf->ctime = nttime_to_unixtime(&timetemp);

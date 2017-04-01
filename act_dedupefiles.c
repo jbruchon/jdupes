@@ -49,6 +49,9 @@ extern void dedupefiles(file_t * restrict files)
   int fd;
   int ret, status, readonly;
 
+  fprintf(stderr, "chosen action does not support multiple filenames yet - error out rather than breaking anything!\n");
+  exit(EXIT_FAILURE);
+
   LOUD(fprintf(stderr, "\nRunning dedupefiles()\n");)
 
   /* Find the largest dupe set, alloc space to hold structs for it */
@@ -83,29 +86,29 @@ extern void dedupefiles(file_t * restrict files)
 
         /* Never allow hard links to be passed to dedupe */
         if (curfile->device == files->device && curfile->inode == files->inode) {
-          LOUD(fprintf(stderr, "skipping hard linked file pair: '%s' = '%s'\n", curfile->d_name, files->d_name);)
+          LOUD(fprintf(stderr, "skipping hard linked file pair: '%s' = '%s'\n", curfile->filename->d_name, files->filename->d_name);)
           continue;
         }
 
-        dupe_filenames[cur_info] = curfile->d_name;
+        dupe_filenames[cur_info] = curfile->filename->d_name;
         readonly = 0;
-        if (access(curfile->d_name, W_OK) != 0) readonly = 1;
-        fd = open(curfile->d_name, O_RDWR);
-        LOUD(fprintf(stderr, "opening loop: open('%s', O_RDWR) [%d]\n", curfile->d_name, fd);)
+        if (access(curfile->filename->d_name, W_OK) != 0) readonly = 1;
+        fd = open(curfile->filename->d_name, O_RDWR);
+        LOUD(fprintf(stderr, "opening loop: open('%s', O_RDWR) [%d]\n", curfile->filename->d_name, fd);)
 
         /* If read-write open fails, privileged users can dedupe in read-only mode */
         if (fd == -1) {
           /* Preserve errno in case read-only fallback fails */
-          LOUD(fprintf(stderr, "opening loop: open('%s', O_RDWR) failed: %s\n", curfile->d_name, strerror(errno));)
+          LOUD(fprintf(stderr, "opening loop: open('%s', O_RDWR) failed: %s\n", curfile->filename->d_name, strerror(errno));)
           errno2 = errno;
-          fd = open(curfile->d_name, O_RDONLY);
+          fd = open(curfile->filename->d_name, O_RDONLY);
           if (fd == -1) {
-            LOUD(fprintf(stderr, "opening loop: fallback open('%s', O_RDONLY) failed: %s\n", curfile->d_name, strerror(errno));)
-            fprintf(stderr, "Unable to open '%s': %s%s\n", curfile->d_name,
+            LOUD(fprintf(stderr, "opening loop: fallback open('%s', O_RDONLY) failed: %s\n", curfile->filename->d_name, strerror(errno));)
+            fprintf(stderr, "Unable to open '%s': %s%s\n", curfile->filename->d_name,
                 strerror(errno2), readonly_msg[readonly]);
             continue;
           }
-          LOUD(fprintf(stderr, "opening loop: fallback open('%s', O_RDONLY) succeeded\n", curfile->d_name);)
+          LOUD(fprintf(stderr, "opening loop: fallback open('%s', O_RDONLY) succeeded\n", curfile->filename->d_name);)
         }
 
         same->info[cur_info].fd = fd;
@@ -119,20 +122,20 @@ extern void dedupefiles(file_t * restrict files)
       same->length = (unsigned long)files->size;
       same->dest_count = (uint16_t)n_dupes;  /* kernel type is __u16 */
 
-      fd = open(files->d_name, O_RDONLY);
-      LOUD(fprintf(stderr, "source: open('%s', O_RDONLY) [%d]\n", files->d_name, fd);)
+      fd = open(files->filename->d_name, O_RDONLY);
+      LOUD(fprintf(stderr, "source: open('%s', O_RDONLY) [%d]\n", files->filename->d_name, fd);)
       if (fd == -1) {
-        fprintf(stderr, "unable to open(\"%s\", O_RDONLY): %s\n", files->d_name, strerror(errno));
+        fprintf(stderr, "unable to open(\"%s\", O_RDONLY): %s\n", files->filename->d_name, strerror(errno));
         goto cleanup;
       }
 
       /* Call dedupe ioctl to pass the files to the kernel */
       ret = ioctl(fd, BTRFS_IOC_FILE_EXTENT_SAME, same);
-      LOUD(fprintf(stderr, "dedupe: ioctl('%s' [%d], BTRFS_IOC_FILE_EXTENT_SAME, same) => %d\n", files->d_name, fd, ret);)
-      if (close(fd) == -1) fprintf(stderr, "Unable to close(\"%s\"): %s\n", files->d_name, strerror(errno));
+      LOUD(fprintf(stderr, "dedupe: ioctl('%s' [%d], BTRFS_IOC_FILE_EXTENT_SAME, same) => %d\n", files->filename->d_name, fd, ret);)
+      if (close(fd) == -1) fprintf(stderr, "Unable to close(\"%s\"): %s\n", files->filename->d_name, strerror(errno));
 
       if (ret < 0) {
-        fprintf(stderr, "dedupe failed against file '%s' (%d matches): %s\n", files->d_name, n_dupes, strerror(errno));
+        fprintf(stderr, "dedupe failed against file '%s' (%d matches): %s\n", files->filename->d_name, n_dupes, strerror(errno));
         goto cleanup;
       }
 
@@ -141,11 +144,11 @@ extern void dedupefiles(file_t * restrict files)
         if (status != 0) {
           if (same->info[cur_info].bytes_deduped == 0) {
             fprintf(stderr, "warning: dedupe failed: %s => %s: %s [%d]%s\n",
-              files->d_name, dupe_filenames[cur_info], dedupeerrstr(status),
+              files->filename->d_name, dupe_filenames[cur_info], dedupeerrstr(status),
               status, readonly_msg[readonly]);
           } else {
             fprintf(stderr, "warning: dedupe only did %" PRIdMAX " bytes: %s => %s: %s [%d]%s\n",
-              (intmax_t)same->info[cur_info].bytes_deduped, files->d_name,
+              (intmax_t)same->info[cur_info].bytes_deduped, files->filename->d_name,
               dupe_filenames[cur_info], dedupeerrstr(status), status, readonly_msg[readonly]);
           }
         }

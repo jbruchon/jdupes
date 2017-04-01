@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <libgen.h>
 #include <sys/time.h>
+#include <search.h>
 #include "jdupes.h"
 #include "string_malloc.h"
 #include "jody_hash.h"
@@ -222,6 +223,9 @@ static unsigned int tree_depth = 0;
 static unsigned int max_depth = 0;
 #endif
 
+/* reverse lookup {device, inode} -> file_t */
+static void *revtree = NULL;
+
 /* File tree head */
 static filetree_t *checktree = NULL;
 
@@ -358,37 +362,50 @@ static void update_progress(const char * const restrict msg, const int file_perc
   return;
 }
 
+/* comparison function for reverse-lookup tree
+ * sort order: first by device then by inode */
+static int compare_revtree(const void * const node1, const void * const node2) {
+    const file_t * const file1 = (const file_t * const) node1;
+    const file_t * const file2 = (const file_t * const) node2;
+
+    int compare = (file1->device > file2->device) - (file1->device < file2->device);
+    if (compare == 0) {
+        compare = (file1->inode > file2->inode) - (file1->inode < file2->inode);
+    }
+    return compare;
+}
+
 /* Check file's stat() info to make sure nothing has changed
  * Returns 1 if changed, 0 if not changed, negative if error */
-extern int file_has_changed(file_t * const restrict file)
+extern int file_has_changed(filename_t * const restrict filename)
 {
-  if (file == NULL || file->d_name == NULL) nullptr("file_has_changed()");
-  LOUD(fprintf(stderr, "file_has_changed('%s')\n", file->d_name);)
+  if (filename == NULL || filename->file == NULL || filename->d_name == NULL) nullptr("file_has_changed()");
+  LOUD(fprintf(stderr, "file_has_changed('%s')\n", filename->d_name);)
 
-  if (!ISFLAG(file->flags, F_VALID_STAT)) return -66;
+  if (!ISFLAG(filename->file->flags, F_VALID_STAT)) return -66;
 
 #ifdef ON_WINDOWS
   int i;
-  if ((i = win_stat(file->d_name, &ws)) != 0) return i;
-  if (file->inode != ws.inode) return 1;
-  if (file->size != ws.size) return 1;
-  if (file->device != ws.device) return 1;
-  if (file->mtime != ws.mtime) return 1;
-  if (file->mode != ws.mode) return 1;
+  if ((i = win_stat(filename->d_name, &ws)) != 0) return i;
+  if (filename->file->inode != ws.inode) return 1;
+  if (filename->file->size != ws.size) return 1;
+  if (filename->file->device != ws.device) return 1;
+  if (filename->file->mtime != ws.mtime) return 1;
+  if (filename->file->mode != ws.mode) return 1;
 #else
-  if (stat(file->d_name, &s) != 0) return -2;
-  if (file->inode != s.st_ino) return 1;
-  if (file->size != s.st_size) return 1;
-  if (file->device != s.st_dev) return 1;
-  if (file->mtime != s.st_mtime) return 1;
-  if (file->mode != s.st_mode) return 1;
+  if (stat(filename->d_name, &s) != 0) return -2;
+  if (filename->file->inode != s.st_ino) return 1;
+  if (filename->file->size != s.st_size) return 1;
+  if (filename->file->device != s.st_dev) return 1;
+  if (filename->file->mtime != s.st_mtime) return 1;
+  if (filename->file->mode != s.st_mode) return 1;
  #ifndef NO_PERMS
-  if (file->uid != s.st_uid) return 1;
-  if (file->gid != s.st_gid) return 1;
+  if (filename->file->uid != s.st_uid) return 1;
+  if (filename->file->gid != s.st_gid) return 1;
  #endif
  #ifndef NO_SYMLINKS
-  if (lstat(file->d_name, &s) != 0) return -3;
-  if ((S_ISLNK(s.st_mode) > 0) ^ ISFLAG(file->flags, F_IS_SYMLINK)) return 1;
+  if (lstat(filename->d_name, &s) != 0) return -3;
+  if ((S_ISLNK(s.st_mode) > 0) ^ ISFLAG(filename->file->flags, F_IS_SYMLINK)) return 1;
  #endif
 #endif /* ON_WINDOWS */
 
@@ -398,15 +415,15 @@ extern int file_has_changed(file_t * const restrict file)
 
 extern inline int getfilestats(file_t * const restrict file)
 {
-  if (file == NULL || file->d_name == NULL) nullptr("getfilestats()");
-  LOUD(fprintf(stderr, "getfilestats('%s')\n", file->d_name);)
+  if (file == NULL || file->filename == NULL || file->filename->d_name == NULL) nullptr("getfilestats()");
+  LOUD(fprintf(stderr, "getfilestats('%s')\n", file->filename->d_name);)
 
   /* Don't stat the same file more than once */
   if (ISFLAG(file->flags, F_VALID_STAT)) return 0;
   SETFLAG(file->flags, F_VALID_STAT);
 
 #ifdef ON_WINDOWS
-  if (win_stat(file->d_name, &ws) != 0) return -1;
+  if (win_stat(file->filename->d_name, &ws) != 0) return -1;
   file->inode = ws.inode;
   file->size = ws.size;
   file->device = ws.device;
@@ -416,18 +433,21 @@ extern inline int getfilestats(file_t * const restrict file)
   file->nlink = ws.nlink;
  #endif /* NO_HARDLINKS */
 #else
-  if (stat(file->d_name, &s) != 0) return -1;
+  if (stat(file->filename->d_name, &s) != 0) return -1;
   file->inode = s.st_ino;
   file->size = s.st_size;
   file->device = s.st_dev;
   file->mtime = s.st_mtime;
   file->mode = s.st_mode;
+ #ifndef NO_HARDLINKS
+  file->nlink = s.st_nlink;
+ #endif
  #ifndef NO_PERMS
   file->uid = s.st_uid;
   file->gid = s.st_gid;
  #endif
  #ifndef NO_SYMLINKS
-  if (lstat(file->d_name, &s) != 0) return -1;
+  if (lstat(file->filename->d_name, &s) != 0) return -1;
   if (S_ISLNK(s.st_mode) > 0) SETFLAG(file->flags, F_IS_SYMLINK);
  #endif
 #endif /* ON_WINDOWS */
@@ -439,7 +459,7 @@ extern int getdirstats(const char * const restrict name,
         jdupes_ino_t * const restrict inode, dev_t * const restrict dev)
 {
   if (name == NULL || inode == NULL || dev == NULL) nullptr("getdirstats");
-  LOUD(fprintf(stderr, "getdirstats('%s', %p, %p)\n", name, (void *)inode, (void *)dev);)
+  LOUD(fprintf(stderr, "getdirstats('%s', %p, %p)\n", name, (void *)file, (void *)dev);)
 
 #ifdef ON_WINDOWS
   if (win_stat(name, &ws) != 0) return -1;
@@ -462,12 +482,13 @@ extern int getdirstats(const char * const restrict name,
  *  2 on an absolute match condition met */
 extern int check_conditions(const file_t * const restrict file1, const file_t * const restrict file2)
 {
-  if (file1 == NULL || file2 == NULL || file1->d_name == NULL || file2->d_name == NULL) nullptr("check_conditions()");
+  if (file1 == NULL || file1->filename == NULL || file1->filename->d_name == NULL
+      || file2 == NULL || file2->filename == NULL || file2->filename->d_name == NULL) nullptr("check_conditions()");
 
-  LOUD(fprintf(stderr, "check_conditions('%s', '%s')\n", file1->d_name, file2->d_name);)
+  LOUD(fprintf(stderr, "check_conditions('%s', '%s')\n", file1->filename->d_name, file2->filename->d_name);)
 
   /* Exclude based on -I/--isolate */
-  if (ISFLAG(flags, F_ISOLATE) && (file1->user_order == file2->user_order)) {
+  if (ISFLAG(flags, F_ISOLATE) && (file1->filename->user_order == file2->filename->user_order)) {
     LOUD(fprintf(stderr, "check_conditions: files ignored: parameter isolation\n"));
     return -1;
   }
@@ -492,7 +513,7 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
 
   /* Hard link and symlink + '-s' check */
 #ifndef NO_HARDLINKS
-  if ((file1->inode == file2->inode) && (file1->device == file2->device)) {
+  if ((file1->filename == file2->filename) && (file1->device == file2->device)) {
     if (ISFLAG(flags, F_CONSIDERHARDLINKS)) {
       LOUD(fprintf(stderr, "check_conditions: files match: hard/soft linked (-H on)\n"));
       return 2;
@@ -526,7 +547,7 @@ static struct travdone *travdone_alloc(const jdupes_ino_t inode, const dev_t dev
 {
   struct travdone *trav;
 
-  LOUD(fprintf(stderr, "travdone_alloc(%" PRIdMAX ", %" PRIdMAX ")\n", (intmax_t)inode, (intmax_t)device);)
+  LOUD(fprintf(stderr, "travdone_alloc(%" PRIdMAX ", %" PRIdMAX ")\n", (intmax_t)file, (intmax_t)device);)
 
   trav = (struct travdone *)string_malloc(sizeof(struct travdone));
   if (trav == NULL) {
@@ -547,7 +568,9 @@ static void grokdir(const char * const restrict dir,
                 file_t * restrict * const restrict filelistp,
                 int recurse)
 {
+  filename_t * restrict newfilename;
   file_t * restrict newfile;
+  file_t * restrict filerev;
 #ifndef NO_SYMLINKS
   static struct stat linfo;
 #endif
@@ -665,23 +688,27 @@ static void grokdir(const char * const restrict dir,
       *tp = '\0';
       d_name_len++;
 
-      /* Allocate the file_t and the d_name entries */
+      /* Allocate the file_t, filename_t and the d_name entries */
       newfile = (file_t *)string_malloc(sizeof(file_t));
       if (!newfile) oom("grokdir() file structure");
-      newfile->d_name = (char *)string_malloc(dirlen + d_name_len + 2);
-      if (!newfile->d_name) oom("grokdir() filename");
+      newfilename = (filename_t *)string_malloc(sizeof(filename_t));
+      if (!newfilename) oom("grokdir() filename structure");
+      newfilename->d_name = (char *)string_malloc(dirlen + d_name_len + 2);
+      if (!newfilename->d_name) oom("grokdir() filename");
+
+      newfilename->file = newfile;
+      newfilename->user_order = user_dir_count;
+      
+      newfile->filename = newfilename;
 
       newfile->next = *filelistp;
-      newfile->user_order = user_dir_count;
       newfile->size = -1;
       newfile->device = 0;
       newfile->inode = 0;
       newfile->mtime = 0;
       newfile->mode = 0;
-#ifdef ON_WINDOWS
- #ifndef NO_HARDLINKS
+#ifndef NO_HARDLINKS
       newfile->nlink = 0;
- #endif
 #endif
 #ifndef NO_PERMS
       newfile->uid = 0;
@@ -693,15 +720,16 @@ static void grokdir(const char * const restrict dir,
       newfile->flags = 0;
 
       tp = tempname;
-      memcpy(newfile->d_name, tp, dirlen + d_name_len);
+      memcpy(newfilename->d_name, tp, dirlen + d_name_len);
 
       if (ISFLAG(flags, F_EXCLUDEHIDDEN)) {
         /* WARNING: Re-used tp here to eliminate a strdup() */
-        strncpy(tp, newfile->d_name, dirlen + d_name_len);
+        strncpy(tp, newfilename->d_name, dirlen + d_name_len);
         tp = basename(tp);
         if (tp[0] == '.' && strcmp(tp, ".") && strcmp(tp, "..")) {
           LOUD(fprintf(stderr, "grokdir: excluding hidden file (-A on)\n"));
-          string_free(newfile->d_name);
+          string_free(newfilename->d_name);
+          string_free(newfile);
           string_free(newfile);
           continue;
         }
@@ -711,7 +739,8 @@ static void grokdir(const char * const restrict dir,
       const int i = getfilestats(newfile);
       if (i || newfile->size == -1) {
         LOUD(fprintf(stderr, "grokdir: excluding due to bad stat()\n"));
-        string_free(newfile->d_name);
+        string_free(newfilename->d_name);
+        string_free(newfile);
         string_free(newfile);
         continue;
       }
@@ -719,7 +748,8 @@ static void grokdir(const char * const restrict dir,
       /* Exclude zero-length files if requested */
       if (!S_ISDIR(newfile->mode) && newfile->size == 0 && !ISFLAG(flags, F_INCLUDEEMPTY)) {
         LOUD(fprintf(stderr, "grokdir: excluding zero-length empty file (-z not set)\n"));
-        string_free(newfile->d_name);
+        string_free(newfilename->d_name);
+        string_free(newfile);
         string_free(newfile);
         continue;
       }
@@ -731,7 +761,8 @@ static void grokdir(const char * const restrict dir,
             ((excludetype == LARGERTHAN) && (newfile->size > (off_t)excludesize))
         ) {
           LOUD(fprintf(stderr, "grokdir: excluding based on xsize limit (-x set)\n"));
-          string_free(newfile->d_name);
+          string_free(newfilename->d_name);
+          string_free(newfile);
           string_free(newfile);
           continue;
         }
@@ -739,9 +770,10 @@ static void grokdir(const char * const restrict dir,
 
 #ifndef NO_SYMLINKS
       /* Get lstat() information */
-      if (lstat(newfile->d_name, &linfo) == -1) {
+      if (lstat(newfilename->d_name, &linfo) == -1) {
         LOUD(fprintf(stderr, "grokdir: excluding due to bad lstat()\n"));
-        string_free(newfile->d_name);
+        string_free(newfilename->d_name);
+        string_free(newfile);
         string_free(newfile);
         continue;
       }
@@ -756,7 +788,8 @@ static void grokdir(const char * const restrict dir,
         hll_exclude++;
   #endif
         LOUD(fprintf(stderr, "grokdir: excluding due to Windows 1024 hard link limit\n"));
-        string_free(newfile->d_name);
+        string_free(newfilename->d_name);
+        string_free(newfile);
         string_free(newfile);
         continue;
       }
@@ -767,27 +800,29 @@ static void grokdir(const char * const restrict dir,
         if (recurse) {
           /* --one-file-system */
           if (ISFLAG(flags, F_ONEFS)
-              && (getdirstats(newfile->d_name, &n_inode, &n_device) == 0)
+              && (getdirstats(newfilename->d_name, &n_inode, &n_device) == 0)
               && (device != n_device)) {
             LOUD(fprintf(stderr, "grokdir: directory: not recursing (--one-file-system)\n"));
-            string_free(newfile->d_name);
+            string_free(newfilename->d_name);
+            string_free(newfile);
             string_free(newfile);
             continue;
           }
 #ifndef NO_SYMLINKS
           else if (/*ISFLAG(flags, F_FOLLOWLINKS) ||*/ !S_ISLNK(linfo.st_mode)) {
             LOUD(fprintf(stderr, "grokdir: directory: recursing (-r/-R)\n"));
-            grokdir(newfile->d_name, filelistp, recurse);
+            grokdir(newfilename->d_name, filelistp, recurse);
           }
 #else
           else {
             LOUD(fprintf(stderr, "grokdir: directory: recursing (-r/-R)\n"));
-            grokdir(newfile->d_name, filelistp, recurse);
+            grokdir(newfilename->d_name, filelistp, recurse);
           }
 #endif
         }
         LOUD(fprintf(stderr, "grokdir: directory: not recursing\n"));
-        string_free(newfile->d_name);
+        string_free(newfilename->d_name);
+        string_free(newfile);
         string_free(newfile);
         continue;
       } else {
@@ -797,12 +832,54 @@ static void grokdir(const char * const restrict dir,
 #else
         if (S_ISREG(newfile->mode)) {
 #endif
-          *filelistp = newfile;
           filecount++;
           progress++;
+
+#ifndef NO_HARDLINKS
+          /* store reverse lookup {device, inode} -> file
+           *
+           * as this is used to detect hardlinked files,
+           * it is only needed if the link count is > 1 */
+	  if (newfile->nlink > 1) {
+	    filerev = tsearch(newfile, &revtree, compare_revtree);
+	    if (!filerev) oom("grokdir() reverse lookup tree node");
+
+	    filerev = *(file_t **) filerev; /* get pointer from tree node */
+	    if (filerev == newfile) {
+	      /* a fresh device/inode pair */
+	      LOUD(fprintf(stderr, "new reverse lookup for %s\n", newfile->filename->d_name));
+
+	      /* store file_t normally */
+	      *filelistp = newfile;
+	    }
+
+	    else {
+	      /* already known device/inode pair */
+	      LOUD(fprintf(stderr, "known reverse lookup from %s to %s\n", newfile->filename->d_name, filerev->filename->d_name));
+
+	      /* throw away new file_t */
+	      string_free(newfile);
+
+	      /* add filename to existing file_t */
+	      newfilename->next = filerev->filename;
+	      filerev->filename = newfilename;
+
+	      /* add reverse lookup from filename to file */
+	      newfilename->file = filerev;
+	    }
+	  } else {
+	    LOUD(fprintf(stderr, "skip reverse lookup, nlink < 2\n"));
+#endif /* NO_HARDLINKS */
+	    /* store file_t normally */
+	    *filelistp = newfile;
+#ifndef NO_HARDLINKS
+	  }
+#endif
+
         } else {
-          LOUD(fprintf(stderr, "grokdir: not a regular file: %s\n", newfile->d_name);)
-          string_free(newfile->d_name);
+          LOUD(fprintf(stderr, "grokdir: not a regular file: %s\n", newfilename->d_name);)
+          string_free(newfilename->d_name);
+          string_free(newfilename);
           string_free(newfile);
           continue;
         }
@@ -846,8 +923,8 @@ static hash_t *get_filehash(const file_t * const restrict checkfile,
   FILE *file;
   int check = 0;
 
-  if (checkfile == NULL || checkfile->d_name == NULL) nullptr("get_filehash()");
-  LOUD(fprintf(stderr, "get_filehash('%s', %" PRIdMAX ")\n", checkfile->d_name, (intmax_t)max_read);)
+  if (checkfile == NULL || checkfile->filename == NULL || checkfile->filename->d_name == NULL) nullptr("get_filehash()");
+  LOUD(fprintf(stderr, "get_filehash('%s', %" PRIdMAX ")\n", checkfile->filename->d_name, (intmax_t)max_read);)
 
   /* Get the file size. If we can't read it, bail out early */
   if (checkfile->size == -1) {
@@ -878,13 +955,13 @@ static hash_t *get_filehash(const file_t * const restrict checkfile,
     }
   }
 #ifdef UNICODE
-  if (!M2W(checkfile->d_name, wstr)) file = NULL;
+  if (!M2W(checkfile->filename->d_name, wstr)) file = NULL;
   else file = _wfopen(wstr, FILE_MODE_RO);
 #else
-  file = fopen(checkfile->d_name, FILE_MODE_RO);
+  file = fopen(checkfile->filename->d_name, FILE_MODE_RO);
 #endif
   if (file == NULL) {
-    fprintf(stderr, "\nerror opening file "); fwprint(stderr, checkfile->d_name, 1);
+    fprintf(stderr, "\nerror opening file "); fwprint(stderr, checkfile->filename->d_name, 1);
     return NULL;
   }
   /* Actually seek past the first chunk if applicable
@@ -892,7 +969,7 @@ static hash_t *get_filehash(const file_t * const restrict checkfile,
   if (ISFLAG(checkfile->flags, F_HASH_PARTIAL)) {
     if (fseeko(file, PARTIAL_HASH_SIZE, SEEK_SET) == -1) {
       fclose(file);
-      fprintf(stderr, "\nerror seeking in file "); fwprint(stderr, checkfile->d_name, 1);
+      fprintf(stderr, "\nerror seeking in file "); fwprint(stderr, checkfile->filename->d_name, 1);
       return NULL;
     }
     fsize -= PARTIAL_HASH_SIZE;
@@ -904,7 +981,7 @@ static hash_t *get_filehash(const file_t * const restrict checkfile,
     if (interrupt) return 0;
     bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
     if (fread((void *)chunk, bytes_to_read, 1, file) != 1) {
-      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, checkfile->d_name, 1);
+      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, checkfile->filename->d_name, 1);
       fclose(file);
       return NULL;
     }
@@ -1122,10 +1199,11 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
   int cmpresult = 0;
   const hash_t * restrict filehash;
 
-  if (tree == NULL || file == NULL || tree->file == NULL || tree->file->d_name == NULL || file->d_name == NULL) nullptr("checkmatch()");
-  LOUD(fprintf(stderr, "checkmatch ('%s', '%s')\n", tree->file->d_name, file->d_name));
+  if (tree == NULL || tree->file == NULL || tree->file->filename == NULL || tree->file->filename->d_name == NULL
+      || file == NULL || file->filename==NULL || file->filename->d_name == NULL) nullptr("checkmatch()");
+  LOUD(fprintf(stderr, "checkmatch ('%s', '%s')\n", tree->file->filename->d_name, file->filename->d_name));
 
-  /* If device and inode fields are equal one of the files is a
+  /* If device and file fields are equal one of the files is a
    * hard link to the other or the files have been listed twice
    * unintentionally. We don't want to flag these files as
    * duplicates unless the user specifies otherwise. */
@@ -1135,7 +1213,7 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
 
 /* If considering hard linked files as duplicates, they are
  * automatically duplicates without being read further since
- * they point to the exact same inode. If we aren't considering
+ * they point to the exact same file. If we aren't considering
  * hard links as duplicates, we just return NULL. */
 
   cmpresult = check_conditions(tree->file, file);
@@ -1314,9 +1392,9 @@ extern unsigned int get_max_dupes(const file_t *files, unsigned int * const rest
 static int sort_pairs_by_param_order(file_t *f1, file_t *f2)
 {
   if (!ISFLAG(flags, F_USEPARAMORDER)) return 0;
-  if (f1 == NULL || f2 == NULL) nullptr("sort_pairs_by_param_order()");
-  if (f1->user_order < f2->user_order) return -sort_direction;
-  if (f1->user_order > f2->user_order) return sort_direction;
+  if (f1 == NULL || f2 == NULL || f1->filename == NULL || f2->filename == NULL) nullptr("sort_pairs_by_param_order()");
+  if (f1->filename->user_order < f2->filename->user_order) return -sort_direction;
+  if (f1->filename->user_order > f2->filename->user_order) return sort_direction;
   return 0;
 }
 
@@ -1337,12 +1415,12 @@ static int sort_pairs_by_mtime(file_t *f1, file_t *f2)
 
 static int sort_pairs_by_filename(file_t *f1, file_t *f2)
 {
-  if (f1 == NULL || f2 == NULL) nullptr("sort_pairs_by_filename()");
+  if (f1 == NULL || f2 == NULL || f1->filename == NULL || f2->filename == NULL) nullptr("sort_pairs_by_filename()");
   int po = sort_pairs_by_param_order(f1, f2);
 
   if (po != 0) return po;
 
-  return numeric_sort(f1->d_name, f2->d_name, sort_direction);
+  return numeric_sort(f1->filename->d_name, f2->filename->d_name, sort_direction);
 }
 
 
@@ -1353,8 +1431,10 @@ static void registerpair(file_t **matchlist, file_t *newmatch,
   file_t *back;
 
   /* NULL pointer sanity checks */
-  if (matchlist == NULL || newmatch == NULL || comparef == NULL) nullptr("registerpair()");
-  LOUD(fprintf(stderr, "registerpair: '%s', '%s'\n", (*matchlist)->d_name, newmatch->d_name);)
+  if (matchlist == NULL || (*matchlist) == NULL || (*matchlist)->filename == NULL
+      || newmatch == NULL || newmatch->filename == NULL
+      || comparef == NULL) nullptr("registerpair()");
+  LOUD(fprintf(stderr, "registerpair: '%s', '%s'\n", (*matchlist)->filename->d_name, newmatch->filename->d_name);)
 
   SETFLAG((*matchlist)->flags, F_HAS_DUPES);
   back = NULL;
@@ -1852,7 +1932,7 @@ int main(int argc, char **argv)
       goto skip_file_scan;
     }
 
-    LOUD(fprintf(stderr, "\nMAIN: current file: %s\n", curfile->d_name));
+    LOUD(fprintf(stderr, "\nMAIN: current file: %s\n", curfile->filename->d_name));
 
     if (!checktree) registerfile(&checktree, NONE, curfile);
     else match = checkmatch(checktree, curfile);
@@ -1885,10 +1965,10 @@ int main(int argc, char **argv)
       }
 
 #ifdef UNICODE
-      if (!M2W(curfile->d_name, wstr)) file1 = NULL;
+      if (!M2W(curfile->filename->d_name, wstr)) file1 = NULL;
       else file1 = _wfopen(wstr, FILE_MODE_RO);
 #else
-      file1 = fopen(curfile->d_name, FILE_MODE_RO);
+      file1 = fopen(curfile->filename->d_name, FILE_MODE_RO);
 #endif
       if (!file1) {
         curfile = curfile->next;
@@ -1896,10 +1976,10 @@ int main(int argc, char **argv)
       }
 
 #ifdef UNICODE
-      if (!M2W((*match)->d_name, wstr)) file2 = NULL;
+      if (!M2W((*match)->file->d_name, wstr)) file2 = NULL;
       else file2 = _wfopen(wstr, FILE_MODE_RO);
 #else
-      file2 = fopen((*match)->d_name, FILE_MODE_RO);
+      file2 = fopen((*match)->filename->d_name, FILE_MODE_RO);
 #endif
       if (!file2) {
         fclose(file1);
