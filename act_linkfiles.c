@@ -212,6 +212,7 @@ extern void linkfiles(file_t *files, const int hard)
 
         /* Create the desired hard link with the original file's name */
         errno = 0;
+        success = 0;
 #ifdef ON_WINDOWS
  #ifdef UNICODE
         if (!M2W(srcfile->d_name, wname2)) {
@@ -223,7 +224,6 @@ extern void linkfiles(file_t *files, const int hard)
         if (CreateHardLink(dupelist[x]->d_name, srcfile->d_name, NULL) == TRUE) success = 1;
  #endif
 #else
-        success = 0;
         if (hard) {
           if (link(srcfile->d_name, dupelist[x]->d_name) == 0) success = 1;
  #ifdef NO_SYMLINKS
