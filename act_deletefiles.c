@@ -46,18 +46,24 @@ extern void deletefiles(file_t *files, int prompt, FILE *tty)
       tmpfile = files->duplicates;
 
       while (tmpfile) {
-        dupelist[++counter] = tmpfile;
-        if (prompt) {
-          printf("[%u] ", counter); fwprint(stdout, tmpfile->d_name, 1);
+        if (ISFLAG(tmpfile->flags, F_IS_ORIGINAL)) {
+          if (prompt) {
+            printf("[ORIGINAL] "); fwprint(stdout, tmpfile->d_name, 1);
+          }
+        } else {
+          dupelist[++counter] = tmpfile;
+          if (prompt) {
+            printf("[%u] ", counter); fwprint(stdout, tmpfile->d_name, 1);
+          }
         }
         tmpfile = tmpfile->duplicates;
       }
 
       if (prompt) printf("\n");
 
-      /* preserve only the first file */
       if (!prompt) {
-        preserve[1] = 1;
+        /* preserve only the first file, unless using originals as preserved files. */
+        preserve[1] = !ISFLAG(flags, F_ORIGINALS);
         for (x = 2; x <= counter; x++) preserve[x] = 0;
       } else do {
         /* prompt for files to preserve */

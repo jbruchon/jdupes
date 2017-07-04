@@ -135,6 +135,7 @@ extern uint_fast32_t flags;
 #define F_MAKESYMLINKS		0x00200000U
 #define F_PRINTMATCHES		0x00400000U
 #define F_ONEFS			0x00800000U
+#define F_ORIGINALS			0x01000000U
 
 #define F_LOUD			0x40000000U
 #define F_DEBUG			0x80000000U
@@ -145,6 +146,7 @@ extern uint_fast32_t flags;
 #define F_HASH_FULL		0x00000004U
 #define F_HAS_DUPES		0x00000008U
 #define F_IS_SYMLINK		0x00000010U
+#define F_IS_ORIGINAL   0x00000020U
 
 typedef enum {
   ORDER_NAME = 0,

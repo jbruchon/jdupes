@@ -1206,7 +1206,7 @@ static inline void rebalance_tree(filetree_t * const tree)
 
 
 /* Check two files for a match */
-static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
+static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file, int do_register)
 {
   int cmpresult = 0;
   const hash_t * restrict filehash;
@@ -1304,22 +1304,28 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     if (tree->left != NULL) {
       LOUD(fprintf(stderr, "checkmatch: recursing tree: left\n"));
       DBG(left_branch++; tree_depth++;)
-      return checkmatch(tree->left, file);
-    } else {
+      return checkmatch(tree->left, file, do_register);
+    } else if (do_register) {
       LOUD(fprintf(stderr, "checkmatch: registering file: left\n"));
       registerfile(&tree, LEFT, file);
       TREE_DEPTH_UPDATE_MAX();
+      return NULL;
+    } else {
+      LOUD(fprintf(stderr, "checkmatch: skip registering file: left\n"));
       return NULL;
     }
   } else if (cmpresult > 0) {
     if (tree->right != NULL) {
       LOUD(fprintf(stderr, "checkmatch: recursing tree: right\n"));
       DBG(right_branch++; tree_depth++;)
-      return checkmatch(tree->right, file);
-    } else {
+      return checkmatch(tree->right, file, do_register);
+    } else if (do_register) {
       LOUD(fprintf(stderr, "checkmatch: registering file: right\n"));
       registerfile(&tree, RIGHT, file);
       TREE_DEPTH_UPDATE_MAX();
+      return NULL;
+    } else {
+      LOUD(fprintf(stderr, "checkmatch: skip registering file: right\n"));
       return NULL;
     }
   } else {
@@ -1454,7 +1460,7 @@ static void registerpair(file_t **matchlist, file_t *newmatch,
    * mess up the sort order. A separate sorting function should happen before
    * the dupe chain is acted upon rather than while pairs are registered. */
   while (traverse) {
-    if (comparef(newmatch, traverse) <= 0) {
+    if (ISFLAG(traverse->flags, F_IS_ORIGINAL) || comparef(newmatch, traverse) <= 0) {
       newmatch->duplicates = traverse;
 
       if (!back) {
@@ -1496,6 +1502,12 @@ static inline void help_text(void)
   printf("                  \tparticular directory more than once; refer to the\n");
   printf("                  \tdocumentation for additional information\n");
   printf(" -f --omitfirst   \tomit the first file in each set of matches\n");
+  printf(" -g --originals   \tSpecifies a directory containing originals.\n");
+  printf("                  \tWhen specified, only duplicates against originals\n");
+  printf("                  \tare reported (original file with non-originals duplicates).\n");
+  printf("                  \tFiles expanded from originals are preserved, but under\n");
+  printf("                  \tparticular circumstances (-s or --symlinks, overlapping\n");
+  printf("                  \tdirectories) they may be also interpreted as duplicates.\n");
   printf(" -h --help        \tdisplay this help message\n");
 #ifndef NO_HARDLINKS
   printf(" -H --hardlinks   \ttreat any linked files as duplicate files. Normally\n");
@@ -1517,6 +1529,8 @@ static inline void help_text(void)
   printf(" -N --noprompt    \ttogether with --delete, preserve the first file in\n");
   printf("                  \teach set of duplicates and delete the rest without\n");
   printf("                  \tprompting the user\n");
+  printf("                  \tWhen originals directories are provided (-g or --originals), \n");
+  printf("                  \tonly originals are preserved and all duplicates are deleted.\n");
   printf(" -o --order=BY    \tselect sort order for output, linking and deleting; by\n");
   printf(" -O --paramorder  \tParameter order is more important than selected -O sort\n");
   printf("                  \tmtime (BY=time) or filename (BY=name, the default)\n");
@@ -1560,6 +1574,7 @@ int main(int argc, char **argv)
 #endif
 {
   static struct proc_cacheinfo pci;
+  static file_t *originals = NULL;
   static file_t *files = NULL;
   static file_t *curfile;
   static char **oldargv;
@@ -1591,6 +1606,7 @@ int main(int argc, char **argv)
     { "noempty", 0, 0, 'n' },
     { "noprompt", 0, 0, 'N' },
     { "order", 1, 0, 'o' },
+    { "originals", 1, 0, 'g' },
     { "paramorder", 0, 0, 'O' },
 #ifndef NO_PERMS
     { "permissions", 0, 0, 'p' },
@@ -1652,7 +1668,7 @@ int main(int argc, char **argv)
   oldargv = cloneargs(argc, argv);
 
   while ((opt = GETOPT(argc, argv,
-  "@1ABdDfhHiIlLmnNOpqQrRsSvzZo:x:X:"
+  "@1ABdDfg:hHiIlLmnNOpqQrRsSvzZo:x:X:"
 #ifndef OMIT_GETOPT_LONG
           , long_options, NULL
 #endif
@@ -1674,6 +1690,11 @@ int main(int argc, char **argv)
       break;
     case 'f':
       SETFLAG(flags, F_OMITFIRST);
+      break;
+    case 'g':
+      SETFLAG(flags, F_ORIGINALS);
+      fprintf(stderr, "originals: %s\n", optarg);
+      grokdir(optarg, &originals, 1);
       break;
     case 'h':
       help_text();
@@ -1905,8 +1926,34 @@ int main(int argc, char **argv)
   if (!ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "\n");
   if (!files) exit(EXIT_SUCCESS);
 
-  curfile = files;
+#ifdef USE_TREE_REBALANCE
+    static unsigned int depth_threshold = INITIAL_DEPTH_THRESHOLD;
+#endif
   progress = 0;
+
+  if (ISFLAG(flags, F_ORIGINALS)) {
+    static file_t *original;
+    original = originals;
+    while (original) {
+      SETFLAG(original->flags, F_IS_ORIGINAL);
+      if (!checktree) registerfile(&checktree, NONE, original);
+      else checkmatch(checktree, original, 1);
+      original = original->next;
+      progress++;
+    }
+
+#ifdef USE_TREE_REBALANCE
+    /* Rebalance the match tree after a certain number of files processed */
+    if (max_depth > depth_threshold) {
+      rebalance_tree(checktree);
+      max_depth = 0;
+      if (depth_threshold < 512) depth_threshold <<= 1;
+      else depth_threshold += 64;
+    }
+#endif /* USE_TREE_REBALANCE */
+  }
+
+  curfile = files;
 
   /* Catch CTRL-C */
   signal(SIGINT, sighandler);
@@ -1915,9 +1962,6 @@ int main(int argc, char **argv)
     static file_t **match = NULL;
     static FILE *file1;
     static FILE *file2;
-#ifdef USE_TREE_REBALANCE
-    static unsigned int depth_threshold = INITIAL_DEPTH_THRESHOLD;
-#endif
 
     if (interrupt) {
       fprintf(stderr, "\nStopping file scan due to user abort\n");
@@ -1928,8 +1972,10 @@ int main(int argc, char **argv)
 
     LOUD(fprintf(stderr, "\nMAIN: current file: %s\n", curfile->d_name));
 
-    if (!checktree) registerfile(&checktree, NONE, curfile);
-    else match = checkmatch(checktree, curfile);
+    if (ISFLAG(flags, F_ORIGINALS)) {
+      if (checktree) match = checkmatch(checktree, curfile, 0);
+    } else if (!checktree) registerfile(&checktree, NONE, curfile);
+    else match = checkmatch(checktree, curfile, 1);
 
 #ifdef USE_TREE_REBALANCE
     /* Rebalance the match tree after a certain number of files processed */

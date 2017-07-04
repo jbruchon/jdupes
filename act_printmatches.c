@@ -23,6 +23,7 @@ extern void printmatches(file_t * restrict files)
       }
       tmpfile = files->duplicates;
       while (tmpfile != NULL) {
+        if (ISFLAG(tmpfile->flags, F_IS_ORIGINAL)) printf("[ORIGINAL] ");
         fwprint(stdout, tmpfile->d_name, 1);
         tmpfile = tmpfile->duplicates;
       }
