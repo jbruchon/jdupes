@@ -1206,7 +1206,7 @@ static inline void rebalance_tree(filetree_t * const tree)
 
 
 /* Check two files for a match */
-static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file, int do_register)
+static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
 {
   int cmpresult = 0;
   const hash_t * restrict filehash;
@@ -1304,8 +1304,8 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     if (tree->left != NULL) {
       LOUD(fprintf(stderr, "checkmatch: recursing tree: left\n"));
       DBG(left_branch++; tree_depth++;)
-      return checkmatch(tree->left, file, do_register);
-    } else if (do_register) {
+      return checkmatch(tree->left, file);
+    } else if (!ISFLAG(flags, F_ORIGINALS) || ISFLAG(file->flags, F_IS_ORIGINAL))  {
       LOUD(fprintf(stderr, "checkmatch: registering file: left\n"));
       registerfile(&tree, LEFT, file);
       TREE_DEPTH_UPDATE_MAX();
@@ -1318,8 +1318,8 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     if (tree->right != NULL) {
       LOUD(fprintf(stderr, "checkmatch: recursing tree: right\n"));
       DBG(right_branch++; tree_depth++;)
-      return checkmatch(tree->right, file, do_register);
-    } else if (do_register) {
+      return checkmatch(tree->right, file);
+    } else if (!ISFLAG(flags, F_ORIGINALS) || ISFLAG(file->flags, F_IS_ORIGINAL)) {
       LOUD(fprintf(stderr, "checkmatch: registering file: right\n"));
       registerfile(&tree, RIGHT, file);
       TREE_DEPTH_UPDATE_MAX();
@@ -1937,7 +1937,7 @@ int main(int argc, char **argv)
     while (original) {
       SETFLAG(original->flags, F_IS_ORIGINAL);
       if (!checktree) registerfile(&checktree, NONE, original);
-      else checkmatch(checktree, original, 1);
+      else checkmatch(checktree, original);
       original = original->next;
       progress++;
     }
@@ -1973,9 +1973,9 @@ int main(int argc, char **argv)
     LOUD(fprintf(stderr, "\nMAIN: current file: %s\n", curfile->d_name));
 
     if (ISFLAG(flags, F_ORIGINALS)) {
-      if (checktree) match = checkmatch(checktree, curfile, 0);
+      if (checktree) match = checkmatch(checktree, curfile);
     } else if (!checktree) registerfile(&checktree, NONE, curfile);
-    else match = checkmatch(checktree, curfile, 1);
+    else match = checkmatch(checktree, curfile);
 
 #ifdef USE_TREE_REBALANCE
     /* Rebalance the match tree after a certain number of files processed */
