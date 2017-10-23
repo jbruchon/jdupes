@@ -3,10 +3,9 @@ Installing jdupes
 To install the program, issue the following commands:
 
 make
-su root
 make install
 
-This will install the program in /usr/bin. You may change this to a
+This will install the program in /usr/local/bin. You may change this to a
 different location by editing the Makefile. Please refer to the
 Makefile for an explanation of compile-time options. If you're having
 trouble compiling, please take a look at the Makefile.
