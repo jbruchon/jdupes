@@ -51,6 +51,7 @@ extern "C" {
  #define JODY_HASH_NOCOMPAT
  #include "jody_hash.h"
 #elif defined USE_HASH_XXHASH64
+ #define XXH_STATIC_LINKING_ONLY   /* *_state_t */
  #include "xxhash.h"
 #endif
 
