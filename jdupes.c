@@ -1108,7 +1108,7 @@ static jdupes_hash_t *get_filehash(const file_t * const restrict checkfile,
   while (fsize > 0) {
     size_t bytes_to_read;
 
-    if (interrupt) return 0;
+    if (interrupt) return NULL;
     bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
     if (fread((void *)chunk, bytes_to_read, 1, file) != 1) {
       fprintf(stderr, "\nerror reading from file "); fwprint(stderr, checkfile->d_name, 1);
@@ -1182,6 +1182,8 @@ static inline void registerfile(filetree_t * restrict * const restrict nodeptr,
   return;
 }
 
+/* declare directcompare() for checkmatch() */
+static inline int directcompare(FILE * const restrict file1, FILE * const restrict file2, off_t size);
 
 #ifdef TREE_DEPTH_STATS
 #define TREE_DEPTH_UPDATE_MAX() { if (max_depth < tree_depth) max_depth = tree_depth; tree_depth = 0; }
@@ -1291,6 +1293,52 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     }
   }
 
+    /* Byte-for-byte check that a matched pair are actually matched */
+  if (cmpresult == 0) {
+    static FILE *file1;
+    static FILE *file2;
+    /* Quick comparison mode will never run directcompare()
+     * Also skip match confirmation for hard-linked files
+     * (This set of comparisons is ugly, but quite efficient) */
+    if (ISFLAG(flags, F_QUICKCOMPARE) ||
+        (ISFLAG(flags, F_CONSIDERHARDLINKS) &&
+         (file->inode == tree->file->inode) &&
+         (file->device == tree->file->device))
+       ) {
+      LOUD(fprintf(stderr, "checkmatch: notice: quick compare match (-Q)\n"));
+    }
+    else {
+
+#ifdef UNICODE
+      if (!M2W(file->d_name, wstr)) file1 = NULL;
+      else file1 = _wfopen(wstr, FILE_MODE_RO);
+#else
+      file1 = fopen(file->d_name, FILE_MODE_RO);
+#endif
+      if (!file1) {
+        return NULL;
+      }
+
+#ifdef UNICODE
+      if (!M2W(tree->file->d_name, wstr)) file2 = NULL;
+      else file2 = _wfopen(wstr, FILE_MODE_RO);
+#else
+      file2 = fopen(tree->file->d_name, FILE_MODE_RO);
+#endif
+      if (!file2) {
+        fclose(file1);
+        return NULL;
+      }
+
+      cmpresult = directcompare(file1, file2, file->size);
+      if (interrupt) return NULL;
+      DBG(if (cmpresult) hash_fail++;)
+
+      fclose(file1);
+      fclose(file2);
+    }
+  }
+
   if (cmpresult < 0) {
     if (tree->left != NULL) {
       LOUD(fprintf(stderr, "checkmatch: recursing tree: left\n"));
@@ -1328,33 +1376,34 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
 
 /* Do a byte-by-byte comparison in case two different files produce the
    same signature. Unlikely, but better safe than sorry. */
-static inline int confirmmatch(FILE * const restrict file1, FILE * const restrict file2, off_t size)
+static inline int directcompare(FILE * const restrict file1, FILE * const restrict file2, off_t size)
 {
   static char *c1 = NULL, *c2 = NULL;
   size_t r1, r2;
   off_t bytes = 0;
   int check = 0;
+  int cmpresult = 0;
 
-  if (file1 == NULL || file2 == NULL) nullptr("confirmmatch()");
-  LOUD(fprintf(stderr, "confirmmatch running\n"));
+  if (file1 == NULL || file2 == NULL) nullptr("directcompare()");
+  LOUD(fprintf(stderr, "directcompare running\n"));
 
   /* Allocate on first use; OOM if either is ever NULLed */
   if (!c1) {
     c1 = (char *)string_malloc(auto_chunk_size);
     c2 = (char *)string_malloc(auto_chunk_size);
   }
-  if (!c1 || !c2) oom("confirmmatch() c1/c2");
+  if (!c1 || !c2) oom("directcompare() c1/c2");
 
   fseek(file1, 0, SEEK_SET);
   fseek(file2, 0, SEEK_SET);
 
   do {
-    if (interrupt) return 0;
+    if (interrupt) return 1;
     r1 = fread(c1, sizeof(char), auto_chunk_size, file1);
     r2 = fread(c2, sizeof(char), auto_chunk_size, file2);
 
-    if (r1 != r2) return 0; /* file lengths are different */
-    if (memcmp (c1, c2, r1)) return 0; /* file contents are different */
+    if (cmpresult=HASH_COMPARE(r1,r2)) return cmpresult; /* file lengths are different */
+    if (cmpresult=memcmp (c1, c2, r1)) return cmpresult; /* file contents are different */
 
     if (!ISFLAG(flags, F_HIDEPROGRESS)) {
       check++;
@@ -1366,7 +1415,7 @@ static inline int confirmmatch(FILE * const restrict file1, FILE * const restric
     }
   } while (r2);
 
-  return 1;
+  return 0;
 }
 
 
@@ -1963,8 +2012,6 @@ int main(int argc, char **argv)
 
   while (curfile) {
     static file_t **match = NULL;
-    static FILE *file1;
-    static FILE *file2;
 
     if (interrupt) {
       fprintf(stderr, "\nStopping file scan due to user abort\n");
@@ -1978,58 +2025,13 @@ int main(int argc, char **argv)
     if (!checktree) registerfile(&checktree, NONE, curfile);
     else match = checkmatch(checktree, curfile);
 
-    /* Byte-for-byte check that a matched pair are actually matched */
     if (match != NULL) {
-      /* Quick comparison mode will never run confirmmatch()
-       * Also skip match confirmation for hard-linked files
-       * (This set of comparisons is ugly, but quite efficient) */
-      if (ISFLAG(flags, F_QUICKCOMPARE) ||
-           (ISFLAG(flags, F_CONSIDERHARDLINKS) &&
-           (curfile->inode == (*match)->inode) &&
-           (curfile->device == (*match)->device))
-         ) {
-        LOUD(fprintf(stderr, "MAIN: notice: quick compare match (-Q)\n"));
-        registerpair(match, curfile,
-            (ordertype == ORDER_TIME) ? sort_pairs_by_mtime : sort_pairs_by_filename);
-        dupecount++;
-        goto skip_full_check;
-      }
-
-#ifdef UNICODE
-      if (!M2W(curfile->d_name, wstr)) file1 = NULL;
-      else file1 = _wfopen(wstr, FILE_MODE_RO);
-#else
-      file1 = fopen(curfile->d_name, FILE_MODE_RO);
-#endif
-      if (!file1) {
-        curfile = curfile->next;
-        continue;
-      }
-
-#ifdef UNICODE
-      if (!M2W((*match)->d_name, wstr)) file2 = NULL;
-      else file2 = _wfopen(wstr, FILE_MODE_RO);
-#else
-      file2 = fopen((*match)->d_name, FILE_MODE_RO);
-#endif
-      if (!file2) {
-        fclose(file1);
-        curfile = curfile->next;
-        continue;
-      }
-
-      if (confirmmatch(file1, file2, curfile->size)) {
-        LOUD(fprintf(stderr, "MAIN: registering matched file pair\n"));
-        registerpair(match, curfile,
-            (ordertype == ORDER_TIME) ? sort_pairs_by_mtime : sort_pairs_by_filename);
-        dupecount++;
-      } DBG(else hash_fail++;)
-
-      fclose(file1);
-      fclose(file2);
+      LOUD(fprintf(stderr, "MAIN: registering matched file pair\n"));
+      registerpair(match, curfile,
+          (ordertype == ORDER_TIME) ? sort_pairs_by_mtime : sort_pairs_by_filename);
+      dupecount++;
     }
 
-skip_full_check:
     curfile = curfile->next;
 
     if (!ISFLAG(flags, F_HIDEPROGRESS)) update_progress(NULL, -1);
