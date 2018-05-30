@@ -126,9 +126,9 @@ OBJS += jody_cacheinfo.o
 OBJS += act_deletefiles.o act_linkfiles.o act_printmatches.o act_summarize.o
 OBJS += $(ADDITIONAL_OBJECTS)
 
-all: jdupes
+all: $(PROGRAM_NAME)
 
-jdupes: $(OBJS)
+$(PROGRAM_NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(PROGRAM_NAME) $(OBJS)
 
 installdirs:
