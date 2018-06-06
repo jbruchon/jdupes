@@ -82,13 +82,9 @@
 
 /* Windows + Unicode compilation */
 #ifdef UNICODE
-wchar_t wname[PATH_MAX];
-wchar_t wname2[PATH_MAX];
-wchar_t wstr[PATH_MAX];
+wpath_t wname,wname2,wstr;
 int out_mode = _O_TEXT;
 int err_mode = _O_TEXT;
- #define M2W(a,b) MultiByteToWideChar(CP_UTF8, 0, a, -1, (LPWSTR)b, PATH_MAX)
- #define W2M(a,b) WideCharToMultiByte(CP_UTF8, 0, a, -1, (LPSTR)b, PATH_MAX, NULL, NULL)
 #endif /* UNICODE */
 
 #ifndef NO_SYMLINKS
@@ -891,7 +887,7 @@ static void grokdir(const char * const restrict dir,
   if (!M2W(tempname, wname)) goto error_cd;
 
   LOUD(fprintf(stderr, "FindFirstFile: %s\n", dir));
-  hFind = FindFirstFile((LPCWSTR)wname, &ffd);
+  hFind = FindFirstFileW(wname, &ffd);
   if (hFind == INVALID_HANDLE_VALUE) { LOUD(fprintf(stderr, "\nfile handle bad\n")); goto error_cd; }
   LOUD(fprintf(stderr, "Loop start\n"));
   do {

@@ -13,6 +13,8 @@
 #include "win_stat.h"
 #include <stdint.h>
 
+#include "jdupes.h"
+
 /* Convert NT epoch to UNIX epoch */
 static time_t nttime_to_unixtime(const uint64_t * const restrict timestamp)
 {
@@ -33,10 +35,9 @@ int win_stat(const char * const filename, struct winstat * const restrict buf)
   uint64_t timetemp;
 
 #ifdef UNICODE
-  static wchar_t wname[PATH_MAX];
   if (!buf) return -127;
-  if (!MultiByteToWideChar(CP_UTF8, 0, filename, -1, wname, PATH_MAX)) return -126;
-  hFile = CreateFileW(wname, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+  if (!M2W(filename,wname2)) return -126;
+  hFile = CreateFileW(wname2, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
 		  FILE_FLAG_BACKUP_SEMANTICS, NULL);
 #else
   if (!buf) return -127;

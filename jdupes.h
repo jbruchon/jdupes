@@ -92,13 +92,14 @@ extern "C" {
 
 /* Windows + Unicode compilation */
 #ifdef UNICODE
-extern wchar_t wname[PATH_MAX];
-extern wchar_t wname2[PATH_MAX];
-extern wchar_t wstr[PATH_MAX];
-extern int out_mode;
-extern int err_mode;
- #define M2W(a,b) MultiByteToWideChar(CP_UTF8, 0, a, -1, (LPWSTR)b, PATH_MAX)
- #define W2M(a,b) WideCharToMultiByte(CP_UTF8, 0, a, -1, (LPSTR)b, PATH_MAX, NULL, NULL)
+ #define WPATH_MAX 8192
+ #define PATHBUF_SIZE WPATH_MAX
+  typedef wchar_t wpath_t[WPATH_MAX];
+  extern wpath_t wname,wname2,wstr;
+  extern int out_mode;
+  extern int err_mode;
+ #define M2W(a,b) MultiByteToWideChar(CP_UTF8, 0, a, -1, (LPWSTR)b, WPATH_MAX)
+ #define W2M(a,b) WideCharToMultiByte(CP_UTF8, 0, a, -1, (LPSTR)b, WPATH_MAX, NULL, NULL)
 #endif /* UNICODE */
 
 #ifndef NO_SYMLINKS

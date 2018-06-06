@@ -23,7 +23,7 @@ extern void slash_convert(char *path)
 /* Copy Windows wide character arguments to UTF-8 */
 extern void widearg_to_argv(int argc, wchar_t **wargv, char **argv)
 {
-  static char temp[PATH_MAX];
+  static char temp[PATHBUF_SIZE * 2];
   int len;
 
   if (!argv) goto error_bad_argv;
@@ -56,7 +56,7 @@ extern int fwprint(FILE * const restrict stream, const char * const restrict str
 
   if (stream_mode == _O_U16TEXT) {
     /* Convert to wide string and send to wide console output */
-    if (!MultiByteToWideChar(CP_UTF8, 0, str, -1, (LPWSTR)wstr, PATH_MAX)) return -1;
+    if (!M2W(str,wstr)) return -1;
     fflush(stream);
     _setmode(_fileno(stream), stream_mode);
     retval = fwprintf(stream, L"%S%S", wstr, cr ? L"\n" : L"");
