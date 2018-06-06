@@ -86,7 +86,7 @@ ifndef NO_UNICODE
 	COMPILER_OPTIONS += -municode
 endif
 	COMPILER_OPTIONS += -D__USE_MINGW_ANSI_STDIO=1 -DON_WINDOWS=1
-	OBJS += win_stat.o
+	OBJS += win_stat.o winres.o
 	override undefine ENABLE_BTRFS
 endif
 
@@ -130,6 +130,9 @@ all: $(PROGRAM_NAME)
 
 $(PROGRAM_NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(PROGRAM_NAME) $(OBJS)
+
+winres.o : winres.rc winres.manifest.xml
+	windres winres.rc winres.o
 
 installdirs:
 	test -e $(DESTDIR)$(BIN_DIR) || $(MKDIR) $(DESTDIR)$(BIN_DIR)
