@@ -1004,7 +1004,7 @@ add_single_file:
   }
 
 #ifdef UNICODE
-  while (FindNextFile(hFind, &ffd) != 0);
+  while (FindNextFileW(hFind, &ffd) != 0);
   FindClose(hFind);
 #else
   closedir(cd);

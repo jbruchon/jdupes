@@ -196,7 +196,7 @@ extern void linkfiles(file_t *files, const int hard)
           fprintf(stderr, "error: MultiByteToWideChar failed: "); fwprint(stderr, srcfile->d_name, 1);
           continue;
         }
-        i = MoveFile(wname, wname2) ? 0 : 1;
+        i = MoveFileW(wname, wname2) ? 0 : 1;
 #else
         i = rename(dupelist[x]->d_name, temp_path);
 #endif
@@ -205,7 +205,7 @@ extern void linkfiles(file_t *files, const int hard)
           fwprint(stderr, dupelist[x]->d_name, 1);
           /* Just in case the rename succeeded yet still returned an error, roll back the rename */
 #ifdef UNICODE
-          MoveFile(wname2, wname);
+          MoveFileW(wname2, wname);
 #else
           rename(temp_path, dupelist[x]->d_name);
 #endif
@@ -260,7 +260,7 @@ extern void linkfiles(file_t *files, const int hard)
             fprintf(stderr, "error: MultiByteToWideChar failed: "); fwprint(stderr, temp_path, 1);
             continue;
           }
-          i = MoveFile(wname2, wname) ? 0 : 1;
+          i = MoveFileW(wname2, wname) ? 0 : 1;
 #else
           i = rename(temp_path, dupelist[x]->d_name);
 #endif
@@ -278,7 +278,7 @@ extern void linkfiles(file_t *files, const int hard)
             fprintf(stderr, "error: MultiByteToWideChar failed: "); fwprint(stderr, temp_path, 1);
             continue;
           }
-        i = DeleteFile(wname2) ? 0 : 1;
+        i = DeleteFileW(wname2) ? 0 : 1;
 #else
         i = remove(temp_path);
 #endif
@@ -288,7 +288,7 @@ extern void linkfiles(file_t *files, const int hard)
           fprintf(stderr, "\nwarning: can't delete temp file, reverting: ");
           fwprint(stderr, temp_path, 1);
 #ifdef UNICODE
-          i = DeleteFile(wname) ? 0 : 1;
+          i = DeleteFileW(wname) ? 0 : 1;
 #else
           i = remove(dupelist[x]->d_name);
 #endif
@@ -296,7 +296,7 @@ extern void linkfiles(file_t *files, const int hard)
           if (i != 0) fprintf(stderr, "\nwarning: couldn't remove link to restore original file\n");
           else {
 #ifdef UNICODE
-            i = MoveFile(wname2, wname) ? 0 : 1;
+            i = MoveFileW(wname2, wname) ? 0 : 1;
 #else
             i = rename(temp_path, dupelist[x]->d_name);
 #endif

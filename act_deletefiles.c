@@ -126,7 +126,7 @@ preserve_none:
             printf("   [!] "); fwprint(stdout, dupelist[x]->d_name, 0);
             printf("-- file changed since being scanned\n");
 #ifdef UNICODE
-          } else if (DeleteFile(wstr) != 0) {
+          } else if (DeleteFileW(wstr) != 0) {
 #else
           } else if (remove(dupelist[x]->d_name) == 0) {
 #endif
