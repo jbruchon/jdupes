@@ -605,18 +605,10 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
 
   LOUD(fprintf(stderr, "check_conditions('%s', '%s')\n", file1->d_name, file2->d_name);)
 
-#ifndef NO_USER_ORDER
-  /* Exclude based on -I/--isolate */
-  if (ISFLAG(flags, F_ISOLATE) && (file1->user_order == file2->user_order)) {
-    LOUD(fprintf(stderr, "check_conditions: files ignored: parameter isolation\n"));
-    return -1;
-  }
-#endif /* NO_USER_ORDER */
-
   /* Exclude based on -1/--one-file-system */
   if (ISFLAG(flags, F_ONEFS) && (file1->device != file2->device)) {
     LOUD(fprintf(stderr, "check_conditions: files ignored: not on same filesystem\n"));
-    return -1;
+    return HASH_COMPARE(file1->device , file2->device);
   }
 
    /* Exclude files by permissions if requested */
@@ -1300,6 +1292,16 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     }
   }
 
+#ifndef NO_USER_ORDER
+  /* Exclude based on -I/--isolate */
+  /* If all checks pass but should exclude based on -I/--isolate, manually set cmpresult to -1.
+   * Have to do it at the latest moment, or an otherwise cmpresult==1 case may get changed to -1 and cause all sorts of trouble */
+  if ((cmpresult == 0) && ISFLAG(flags, F_ISOLATE) && (tree->file->user_order == file->user_order)) {
+    LOUD(fprintf(stderr, "checkmatch: files ignored: parameter isolation\n"));
+    cmpresult=-1;
+  }
+#endif /* NO_USER_ORDER */
+
   if (cmpresult < 0) {
     if (tree->left != NULL) {
       LOUD(fprintf(stderr, "checkmatch: recursing tree: left\n"));
@@ -1732,7 +1734,6 @@ int main(int argc, char **argv)
 #ifndef NO_USER_ORDER
     case 'I':
       SETFLAG(flags, F_ISOLATE);
-      break;
     case 'O':
       SETFLAG(flags, F_USEPARAMORDER);
       break;
