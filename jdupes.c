@@ -60,6 +60,7 @@
 #include "act_linkfiles.h"
 #include "act_printmatches.h"
 #include "act_summarize.h"
+#include "act_printnull.h"
 
 
 /* Detect Windows and modify as needed */
@@ -1497,6 +1498,8 @@ static inline void help_text(void)
 #ifdef LOUD
   printf(" -@ --loud        \toutput annoying low-level debug info while running\n");
 #endif
+  printf(" -0 --printnull   \tprints filenames terminated by null\n");
+  printf("                  \t(duplicate groups are terminated by null-null)\n");
   printf(" -1 --one-file-system \tdo not match files on different filesystems/devices\n");
   printf(" -A --nohidden    \texclude hidden files from consideration\n");
 #ifdef ENABLE_BTRFS
@@ -1599,6 +1602,7 @@ int main(int argc, char **argv)
   static const struct option long_options[] =
   {
     { "loud", 0, 0, '@' },
+    { "printnull", 0, 0, '0' },
     { "one-file-system", 0, 0, '1' },
     { "nohidden", 0, 0, 'A' },
     { "dedupe", 0, 0, 'B' },
@@ -1678,12 +1682,15 @@ int main(int argc, char **argv)
   oldargv = cloneargs(argc, argv);
 
   while ((opt = GETOPT(argc, argv,
-  "@1ABC:dDfhHiIlLmnNOpP:qQrRsSvzZo:x:X:"
+  "@01ABC:dDfhHiIlLmnNOpP:qQrRsSvzZo:x:X:"
 #ifndef OMIT_GETOPT_LONG
           , long_options, NULL
 #endif
          )) != EOF) {
     switch (opt) {
+    case '0':
+      SETFLAG(flags, F_PRINTNULL);
+      break;
     case '1':
       SETFLAG(flags, F_ONEFS);
       break;
@@ -1906,13 +1913,14 @@ int main(int argc, char **argv)
 
   /* If pm == 0, call printmatches() */
   pm = !!ISFLAG(flags, F_SUMMARIZEMATCHES) +
+      !!ISFLAG(flags, F_PRINTNULL) +
       !!ISFLAG(flags, F_DELETEFILES) +
       !!ISFLAG(flags, F_HARDLINKFILES) +
       !!ISFLAG(flags, F_MAKESYMLINKS) +
       !!ISFLAG(flags, F_DEDUPEFILES);
 
   if (pm > 1) {
-      fprintf(stderr, "Only one of --summarize, --delete, --linkhard, --linksoft, or --dedupe\nmay be used\n");
+      fprintf(stderr, "Only one of --summarize, --printnull, --delete, --linkhard, --linksoft, or --dedupe\nmay be used\n");
       string_malloc_destroy();
       exit(EXIT_FAILURE);
   }
@@ -2051,6 +2059,7 @@ skip_file_scan:
     else deletefiles(files, 1, stdin);
   }
   if (ISFLAG(flags, F_SUMMARIZEMATCHES)) summarizematches(files);
+  if (ISFLAG(flags, F_PRINTNULL)) printnull(files);
 #ifndef NO_SYMLINKS
   if (ISFLAG(flags, F_MAKESYMLINKS)) linkfiles(files, 0);
 #endif

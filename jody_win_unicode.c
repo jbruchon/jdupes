@@ -67,7 +67,30 @@ extern int fwprint(FILE * const restrict stream, const char * const restrict str
     return fprintf(stream, "%s%s", str, cr ? "\n" : "");
   }
 }
+
+extern int fwprint0(FILE * const restrict stream, const char * const restrict str)
+{
+  int retval;
+  int stream_mode = out_mode;
+
+  if (stream == stderr) stream_mode = err_mode;
+
+  if (stream_mode == _O_U16TEXT) {
+    /* Convert to wide string and send to wide console output */
+    if (!M2W(str,wstr)) return -1;
+    fflush(stream);
+    _setmode(_fileno(stream), stream_mode);
+    retval = fwprintf(stream, L"%S%C", wstr, 0);
+    fflush(stream);
+    _setmode(_fileno(stream), _O_TEXT);
+    return retval;
+  } else {
+    return fprintf(stream, "%s%c", str, 0);
+  }
+}
+
 #else
  #define fwprint(a,b,c) fprintf(a, "%s%s", b, c ? "\n" : "")
+ #define fwprint0(a,b) fprintf(a, "%s%c", b, 0)
  #define slash_convert(a)
 #endif /* UNICODE */
