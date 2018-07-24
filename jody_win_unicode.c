@@ -47,7 +47,7 @@ error_wc2mb:
 
 
 /* Print a string that is wide on Windows but normal on POSIX */
-extern int fwprint(FILE * const restrict stream, const char * const restrict str, const int cr)
+int _fwprint(FILE * const restrict stream, const char * const restrict str, const int cr, const int print0)
 {
   int retval;
   int stream_mode = out_mode;
@@ -59,34 +59,31 @@ extern int fwprint(FILE * const restrict stream, const char * const restrict str
     if (!M2W(str,wstr)) return -1;
     fflush(stream);
     _setmode(_fileno(stream), stream_mode);
-    retval = fwprintf(stream, L"%S%S", wstr, cr ? L"\n" : L"");
+    if (print0) {
+      retval = fwprintf(stream, L"%S%C", wstr, 0);
+    } else {
+      retval = fwprintf(stream, L"%S%S", wstr, cr ? L"\n" : L"");
+    }
     fflush(stream);
     _setmode(_fileno(stream), _O_TEXT);
     return retval;
   } else {
-    return fprintf(stream, "%s%s", str, cr ? "\n" : "");
+    if (print0) {
+      return fprintf(stream, "%s%c", str, 0);
+    } else {
+      return fprintf(stream, "%s%s", str, cr ? "\n" : "");
+    }
   }
+}
+
+extern int fwprint(FILE * const restrict stream, const char * const restrict str, const int cr)
+{
+  return _fwprint(stream, str, cr, 0);
 }
 
 extern int fwprint0(FILE * const restrict stream, const char * const restrict str)
 {
-  int retval;
-  int stream_mode = out_mode;
-
-  if (stream == stderr) stream_mode = err_mode;
-
-  if (stream_mode == _O_U16TEXT) {
-    /* Convert to wide string and send to wide console output */
-    if (!M2W(str,wstr)) return -1;
-    fflush(stream);
-    _setmode(_fileno(stream), stream_mode);
-    retval = fwprintf(stream, L"%S%C", wstr, 0);
-    fflush(stream);
-    _setmode(_fileno(stream), _O_TEXT);
-    return retval;
-  } else {
-    return fprintf(stream, "%s%c", str, 0);
-  }
+  return _fwprint(stream, str, 0, 1);
 }
 
 #else
