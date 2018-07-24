@@ -123,7 +123,7 @@ INSTALL_DATA    = $(INSTALL) -m 0644
 
 OBJS += jdupes.o jody_paths.o jody_sort.o jody_win_unicode.o string_malloc.o
 OBJS += jody_cacheinfo.o
-OBJS += act_deletefiles.o act_linkfiles.o act_printmatches.o act_summarize.o
+OBJS += act_deletefiles.o act_linkfiles.o act_printmatches.o act_summarize.o act_printnull.o
 OBJS += $(ADDITIONAL_OBJECTS)
 
 all: $(PROGRAM_NAME)
