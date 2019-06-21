@@ -198,7 +198,7 @@ effect, but it's there if you want it for some reason. Sending the signal
 twice while the program is stopped will behave as if it was only sent once,
 as per normal POSIX signal behavior.
 
-The `-O` or `--paramorder` option allows the user greater control over wha
+The `-O` or `--paramorder` option allows the user greater control over what
 appears in the first position of a match set, specifically for keeping the `-N`
 option from deleting all but one file in a set in a seemingly random way. All
 directories specified on the command line will be used as the sorting order
