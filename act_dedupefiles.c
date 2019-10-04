@@ -23,6 +23,8 @@
 #include <sys/utsname.h>
 #include "act_dedupefiles.h"
 
+#define BTRFS_DEDUP_MAX_SIZE 16777216
+
 /* Message to append to BTRFS warnings based on write permissions */
 static const char *readonly_msg[] = {
    "",
@@ -54,6 +56,7 @@ extern void dedupefiles(file_t * restrict files)
 
   int fd;
   int ret, status, readonly;
+  int64_t cur_offset;
 
   LOUD(fprintf(stderr, "\nRunning dedupefiles()\n");)
 
@@ -126,14 +129,10 @@ extern void dedupefiles(file_t * restrict files)
         }
 
         same->info[cur_info].fd = fd;
-        same->info[cur_info].logical_offset = 0;
         cur_info++;
         total_files++;
       }
       n_dupes = cur_info;
-
-      same->logical_offset = 0;
-      same->length = (uint64_t)files->size;
       same->dest_count = (uint16_t)n_dupes;  /* kernel type is __u16 */
 
       fd = open(files->d_name, O_RDONLY);
@@ -144,8 +143,23 @@ extern void dedupefiles(file_t * restrict files)
       }
 
       /* Call dedupe ioctl to pass the files to the kernel */
-      ret = ioctl(fd, BTRFS_IOC_FILE_EXTENT_SAME, same);
-      LOUD(fprintf(stderr, "dedupe: ioctl('%s' [%d], BTRFS_IOC_FILE_EXTENT_SAME, same) => %d\n", files->d_name, fd, ret);)
+      ret = 0;
+      same->length = (uint64_t)BTRFS_DEDUP_MAX_SIZE;
+      for (cur_offset = 0; cur_offset < files->size; cur_offset += BTRFS_DEDUP_MAX_SIZE) {
+        same->logical_offset = (uint64_t)cur_offset;
+        for (cur_info = 0; cur_info < n_dupes; cur_info++) {
+          same->info[cur_info].logical_offset = (uint64_t)cur_offset;
+        }
+        if (BTRFS_DEDUP_MAX_SIZE + cur_offset < files->size)
+          same->length = (uint64_t)BTRFS_DEDUP_MAX_SIZE;
+        else
+          same->length = (uint64_t)(files->size - cur_offset);
+
+        ret = ioctl(fd, BTRFS_IOC_FILE_EXTENT_SAME, same);
+        if (ret < 0)
+          break;
+        LOUD(fprintf(stderr, "dedupe: ioctl('%s' [%d], BTRFS_IOC_FILE_EXTENT_SAME, same) => %d\n", files->d_name, fd, ret);)
+      } 
       if (close(fd) == -1) fprintf(stderr, "Unable to close(\"%s\"): %s\n", files->d_name, strerror(errno));
 
       if (ret < 0) {
