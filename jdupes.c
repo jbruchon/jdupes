@@ -590,18 +590,30 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
 
   LOUD(fprintf(stderr, "check_conditions('%s', '%s')\n", file1->d_name, file2->d_name);)
 
+  /* Exclude files that are not the same size */
+  if (file1->size > file2->size) {
+    LOUD(fprintf(stderr, "check_conditions: no match: size of file1 > file2 (%" PRIdMAX " > %" PRIdMAX ")\n",
+      (intmax_t)file1->size, (intmax_t)file2->size));
+    return -1;
+  }
+  if (file1->size < file2->size) {
+    LOUD(fprintf(stderr, "check_conditions: no match: size of file1 < file2 (%" PRIdMAX " < %"PRIdMAX ")\n",
+      (intmax_t)file1->size, (intmax_t)file2->size));
+    return 1;
+  }
+
 #ifndef NO_USER_ORDER
   /* Exclude based on -I/--isolate */
   if (ISFLAG(flags, F_ISOLATE) && (file1->user_order == file2->user_order)) {
     LOUD(fprintf(stderr, "check_conditions: files ignored: parameter isolation\n"));
-    return -1;
+    return -3;
   }
 #endif /* NO_USER_ORDER */
 
   /* Exclude based on -1/--one-file-system */
   if (ISFLAG(flags, F_ONEFS) && (file1->device != file2->device)) {
     LOUD(fprintf(stderr, "check_conditions: files ignored: not on same filesystem\n"));
-    return -1;
+    return -4;
   }
 
    /* Exclude files by permissions if requested */
@@ -612,7 +624,7 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
           || file1->gid != file2->gid
 #endif
           )) {
-    return -1;
+    return -5;
     LOUD(fprintf(stderr, "check_conditions: no match: permissions/ownership differ (-p on)\n"));
   }
 
@@ -628,18 +640,6 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
     }
   }
 #endif
-
-  /* Exclude files that are not the same size */
-  if (file1->size > file2->size) {
-    LOUD(fprintf(stderr, "check_conditions: no match: size of file1 > file2 (%" PRIdMAX " > %" PRIdMAX ")\n",
-      (intmax_t)file1->size, (intmax_t)file2->size));
-    return -1;
-  }
-  if (file1->size < file2->size) {
-    LOUD(fprintf(stderr, "check_conditions: no match: size of file1 < file2 (%" PRIdMAX " < %"PRIdMAX ")\n",
-      (intmax_t)file1->size, (intmax_t)file2->size));
-    return 1;
-  }
 
   /* Fall through: all checks passed */
   LOUD(fprintf(stderr, "check_conditions: all condition checks passed\n"));
@@ -1190,6 +1190,7 @@ static inline void registerfile(filetree_t * restrict * const restrict nodeptr,
 static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
 {
   int cmpresult = 0;
+  int cantmatch = 0;
   const jdupes_hash_t * restrict filehash;
 
   if (tree == NULL || file == NULL || tree->file == NULL || tree->file->d_name == NULL || file->d_name == NULL) nullptr("checkmatch()");
@@ -1212,6 +1213,12 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
   switch (cmpresult) {
     case 2: return &tree->file;  /* linked files + -H switch */
     case -2: return NULL;  /* linked files, no -H switch */
+    case -3:    /* user order */
+    case -4:    /* one filesystem */
+    case -5:    /* permissions */
+        cantmatch = 1;
+        cmpresult = 0;
+        break;
     default: break;
   }
 
@@ -1287,6 +1294,10 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     } else {
       DBG(partial_elim++);
     }
+  }
+
+  if( (cantmatch!=0) && (cmpresult==0) ) {
+    cmpresult = -1;
   }
 
   if (cmpresult < 0) {
