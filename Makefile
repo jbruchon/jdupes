@@ -12,9 +12,9 @@ PREFIX = /usr/local
 # To disable long options, uncomment the following line.
 #CFLAGS += -DOMIT_GETOPT_LONG
 
-# Uncomment for Linux with BTRFS support. Needed for -B/--dedupe.
-# This can also be enabled at build time: 'make ENABLE_BTRFS=1'
-#CFLAGS += -DENABLE_BTRFS
+# Uncomment for Linux for -B/--dedupe.
+# This can also be enabled at build time: 'make ENABLE_FSDEDUP=1'
+#CFLAGS += -DENABLE_FSDEDUP
 
 # Uncomment for low memory usage at the expense of speed and features
 # This can be enabled at build time: 'make LOW_MEMORY=1'
@@ -80,12 +80,12 @@ ifdef HARDEN
 COMPILER_OPTIONS += -Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -fpie -Wl,-z,relro -Wl,-z,now
 endif
 
-# Catch someone trying to enable BTRFS in flags and turn on ENABLE_BTRFS
-ifneq (,$(findstring DENABLE_BTRFS,$(CFLAGS)))
-	ENABLE_BTRFS=1
+# Catch someone trying to enable BTRFS in flags and turn on ENABLE_FSDEDUP
+ifneq (,$(findstring DENABLE_BTRFS,$(CFLAGS) $(CFLAGS_EXTRA)))
+	ENABLE_FSDEDUP=1
 endif
-ifneq (,$(findstring DENABLE_BTRFS,$(CFLAGS_EXTRA)))
-	ENABLE_BTRFS=1
+ifneq (,$(findstring DENABLE_FSDEDUP,$(CFLAGS) $(CFLAGS_EXTRA)))
+	ENABLE_FSDEDUP=1
 endif
 
 # MinGW needs this for printf() conversions to work
@@ -97,12 +97,15 @@ ifndef NO_UNICODE
 endif
 	COMPILER_OPTIONS += -D__USE_MINGW_ANSI_STDIO=1 -DON_WINDOWS=1
 	OBJS += win_stat.o winres.o
-	override undefine ENABLE_BTRFS
+	override undefine ENABLE_FSDEDUP
 endif
 
 # New BTRFS support option
 ifdef ENABLE_BTRFS
-COMPILER_OPTIONS += -DENABLE_BTRFS
+ENABLE_FSDEDUP=1
+endif
+ifdef ENABLE_FSDEDUP
+COMPILER_OPTIONS += -DENABLE_FSDEDUP
 OBJS += act_dedupefiles.o
 else
 OBJS_CLEAN += act_dedupefiles.o

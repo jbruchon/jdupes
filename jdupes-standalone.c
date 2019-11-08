@@ -40,8 +40,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
-/* Optional btrfs support */
-#ifdef ENABLE_BTRFS
+/* Optional FIDEDUPERANGE support */
+#ifdef ENABLE_FSDEDUP
+ #ifndef __linux__
+  #error "Filesystem-managed deduplication only available for Linux."
+ #endif /* __linux__ */
  #include <sys/ioctl.h>
  #include <sys/utsname.h>
  #ifdef STATIC_BTRFS_H
@@ -49,20 +52,20 @@
   #include <linux/types.h>
   #define BTRFS_IOCTL_MAGIC 0x94
   #define BTRFS_DEVICE_PATH_NAME_MAX 1024
-  #define BTRFS_SAME_DATA_DIFFERS	1
-  struct btrfs_ioctl_same_extent_info {
+  #define FILE_DEDUPE_RANGE_DIFFERS	1
+  struct file_dedupe_range_info {
    __s64 fd; __u64 logical_offset; __u64 bytes_deduped; __s32 status; __u32 reserved;
   };
-  struct btrfs_ioctl_same_args {
+  struct file_dedupe_range {
    __u64 logical_offset; __u64 length; __u16 dest_count; __u16 reserved1;
-   __u32 reserved2; struct btrfs_ioctl_same_extent_info info[0];
+   __u32 reserved2; struct file_dedupe_range_info info[0];
   };
-  #define BTRFS_IOC_FILE_EXTENT_SAME _IOWR(BTRFS_IOCTL_MAGIC, 54, struct btrfs_ioctl_same_args)
+  #define FIDEDUPERANGE _IOWR(BTRFS_IOCTL_MAGIC, 54, struct file_dedupe_range)
   /* Static BTRFS header */
  #else
-  #include <linux/btrfs.h>
+  #include <linux/fs.h>
  #endif /* STATIC_BTRFS_H */
-#endif /* ENABLE_BTRFS */
+#endif /* ENABLE_FSDEDUP */
 
 #define JODY_HASH_WIDTH 32
 typedef uint32_t jodyhash_t;
@@ -818,7 +821,7 @@ static unsigned int get_max_dupes(const file_t *files, unsigned int * const rest
 
 
 /* BTRFS deduplication of file blocks */
-#ifdef ENABLE_BTRFS
+#ifdef ENABLE_FSDEDUP
 
 /* Message to append to BTRFS warnings based on write permissions */
 static const char *readonly_msg[] = {
@@ -829,8 +832,8 @@ static const char *readonly_msg[] = {
 static char *dedupeerrstr(int err) {
 
   tempname[sizeof(tempname)-1] = '\0';
-  if (err == BTRFS_SAME_DATA_DIFFERS) {
-    snprintf(tempname, sizeof(tempname), "BTRFS_SAME_DATA_DIFFERS (data modified in the meantime?)");
+  if (err == FILE_DEDUPE_RANGE_DIFFERS) {
+    snprintf(tempname, sizeof(tempname), "FILE_DEDUPE_RANGE_DIFFERS (data modified in the meantime?)");
     return tempname;
   } else if (err < 0) {
     return strerror(-err);
@@ -843,7 +846,7 @@ static char *dedupeerrstr(int err) {
 static void dedupefiles(file_t * restrict files)
 {
   struct utsname utsname;
-  struct btrfs_ioctl_same_args *same;
+  struct file_dedupe_range *same;
   char **dupe_filenames; /* maps to same->info indices */
 
   file_t *curfile;
@@ -871,8 +874,8 @@ static void dedupefiles(file_t * restrict files)
     fprintf(stderr, "Ask the program author to add this feature if you really need it. Exiting!\n");
     exit(EXIT_FAILURE);
   }
-  same = calloc(sizeof(struct btrfs_ioctl_same_args) +
-                sizeof(struct btrfs_ioctl_same_extent_info) * max_dupes, 1);
+  same = calloc(sizeof(struct file_dedupe_range) +
+                sizeof(struct file_dedupe_range_info) * max_dupes, 1);
   dupe_filenames = malloc(max_dupes * sizeof(char *));
   if (!same || !dupe_filenames) oom("dedupefiles() structures");
 
@@ -969,7 +972,7 @@ cleanup:
   free(dupe_filenames);
   return;
 }
-#endif /* ENABLE_BTRFS */
+#endif /* ENABLE_FSDEDUP */
 
 
 /* Delete duplicate files automatically or interactively */
@@ -2010,8 +2013,8 @@ static inline void help_text(void)
   printf(" -0 --printnull   \toutput nulls instead of CR/LF (like 'find -print0')\n");
   printf(" -1 --one-file-system \tdo not match files on different filesystems/devices\n");
   printf(" -A --nohidden    \texclude hidden files from consideration\n");
-#ifdef ENABLE_BTRFS
-  printf(" -B --dedupe      \tsend matches to btrfs for block-level deduplication\n");
+#ifdef ENABLE_FSDEDUP
+  printf(" -B --dedupe      \tsend matches to filesystem for block-level deduplication\n");
 #endif
   printf(" -d --delete      \tprompt user for files to preserve and delete all\n");
   printf("                  \tothers; important: under particular circumstances,\n");
@@ -2295,7 +2298,7 @@ int main(int argc, char **argv)
       }
       break;
     case 'B':
-#ifdef ENABLE_BTRFS
+#ifdef ENABLE_FSDEDUP
       SETFLAG(flags, F_DEDUPEFILES);
       /* btrfs will do the byte-for-byte check itself */
       SETFLAG(flags, F_QUICKCOMPARE);
@@ -2339,7 +2342,7 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-#ifdef ENABLE_BTRFS
+#ifdef ENABLE_FSDEDUP
   if (ISFLAG(flags, F_CONSIDERHARDLINKS) && ISFLAG(flags, F_DEDUPEFILES))
     fprintf(stderr, "warning: option --dedupe overrides the behavior of --hardlinks\n");
 #endif
@@ -2483,9 +2486,9 @@ skip_file_scan:
 #ifndef NO_HARDLINKS
   if (ISFLAG(flags, F_HARDLINKFILES)) linkfiles(files, 1);
 #endif /* NO_HARDLINKS */
-#ifdef ENABLE_BTRFS
+#ifdef ENABLE_FSDEDUP
   if (ISFLAG(flags, F_DEDUPEFILES)) dedupefiles(files);
-#endif /* ENABLE_BTRFS */
+#endif /* ENABLE_FSDEDUP */
   if (ISFLAG(flags, F_PRINTMATCHES)) printmatches(files);
   if (ISFLAG(flags, F_PRINTJSON)) printjson(files, argc, argv);
   if (ISFLAG(flags, F_SUMMARIZEMATCHES)) {

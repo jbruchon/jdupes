@@ -3,7 +3,7 @@
 
 #include "jdupes.h"
 
-#ifdef ENABLE_BTRFS
+#ifdef ENABLE_FSDEDUP
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -12,15 +12,20 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#ifdef __linux__
 /* Use built-in static BTRFS header if requested */
 #ifdef STATIC_BTRFS_H
 #include "btrfs-static.h"
 #else
-#include <linux/btrfs.h>
+#include <linux/fs.h>
 #endif
 
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
+#else
+#error "Filesystem-managed deduplication only available for Linux."
+#endif
+
 #include "act_dedupefiles.h"
 
 #define BTRFS_DEDUP_MAX_SIZE 16777216
@@ -33,8 +38,8 @@ static const char *readonly_msg[] = {
 
 static char *dedupeerrstr(int err) {
   tempname[sizeof(tempname)-1] = '\0';
-  if (err == BTRFS_SAME_DATA_DIFFERS) {
-    snprintf(tempname, sizeof(tempname), "BTRFS_SAME_DATA_DIFFERS (data modified in the meantime?)");
+  if (err == FILE_DEDUPE_RANGE_DIFFERS) {
+    snprintf(tempname, sizeof(tempname), "FILE_DEDUPE_RANGE_DIFFERS (data modified in the meantime?)");
     return tempname;
   } else if (err < 0) {
     return strerror(-err);
@@ -47,7 +52,7 @@ static char *dedupeerrstr(int err) {
 extern void dedupefiles(file_t * restrict files)
 {
   struct utsname utsname;
-  struct btrfs_ioctl_same_args *same;
+  struct file_dedupe_range *same;
   char **dupe_filenames; /* maps to same->info indices */
 
   file_t *curfile;
@@ -79,11 +84,11 @@ extern void dedupefiles(file_t * restrict files)
     fprintf(stderr, "Ask the program author to add this feature if you really need it. Exiting!\n");
     exit(EXIT_FAILURE);
   }
-  same = calloc(sizeof(struct btrfs_ioctl_same_args) +
-                sizeof(struct btrfs_ioctl_same_extent_info) * max_dupes, 1);
+  same = calloc(sizeof(struct file_dedupe_range) +
+                sizeof(struct file_dedupe_range_info) * max_dupes, 1);
   dupe_filenames = malloc(max_dupes * sizeof(char *));
   LOUD(fprintf(stderr, "dedupefiles structs: alloc1 size %lu => %p, alloc2 size %lu => %p\n",
-        sizeof(struct btrfs_ioctl_same_args) + sizeof(struct btrfs_ioctl_same_extent_info) * max_dupes,
+        sizeof(struct file_dedupe_range) + sizeof(struct file_dedupe_range_info) * max_dupes,
         (void *)same, max_dupes * sizeof(char *), (void *)dupe_filenames);)
   if (!same || !dupe_filenames) oom("dedupefiles() structures");
 
@@ -200,4 +205,4 @@ cleanup:
   free(dupe_filenames);
   return;
 }
-#endif /* ENABLE_BTRFS */
+#endif /* ENABLE_FSDEDUP */

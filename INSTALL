@@ -28,7 +28,7 @@ instead of using CFLAGS_EXTRA, i.e. 'make DEBUG=1':
 
 DEBUG                  Turn on algorithm statistic reporting with '-D'
 LOUD                   '-@' for low-level debugging; enables DEBUG
-ENABLE_BTRFS           Enable '-B/--dedupe' for btrfs deduplication
+ENABLE_FSDEDUP         Enable '-B/--dedupe' for filesystem deduplication
 STATIC_BTRFS_H         Build BTRFS support with included minimal header file
 LOW_MEMORY             Build for lower memory usage instead of speed
 NO_PERMS               Disable permission options and code

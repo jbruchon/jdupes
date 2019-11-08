@@ -25,9 +25,9 @@
 
 #define BTRFS_DEVICE_PATH_NAME_MAX 1024
 
-#define BTRFS_SAME_DATA_DIFFERS	1
+#define FILE_DEDUPE_RANGE_DIFFERS	1
 /* For extent-same ioctl */
-struct btrfs_ioctl_same_extent_info {
+struct file_dedupe_range_info {
 	__s64 fd;		/* in - destination file */
 	__u64 logical_offset;	/* in - start of extent in destination */
 	__u64 bytes_deduped;	/* out - total # of bytes we were able
@@ -35,22 +35,22 @@ struct btrfs_ioctl_same_extent_info {
 	/* status of this dedupe operation:
 	 * 0 if dedup succeeds
 	 * < 0 for error
-	 * == BTRFS_SAME_DATA_DIFFERS if data differs
+	 * == FILE_DEDUPE_RANGE_DIFFERS if data differs
 	 */
 	__s32 status;		/* out - see above description */
 	__u32 reserved;
 };
 
-struct btrfs_ioctl_same_args {
+struct file_dedupe_range {
 	__u64 logical_offset;	/* in - start of extent in source */
 	__u64 length;		/* in - length of extent */
 	__u16 dest_count;	/* in - total elements in info array */
 	__u16 reserved1;
 	__u32 reserved2;
-	struct btrfs_ioctl_same_extent_info info[0];
+	struct file_dedupe_range_info info[0];
 };
 
-#define BTRFS_IOC_FILE_EXTENT_SAME _IOWR(BTRFS_IOCTL_MAGIC, 54, \
-					 struct btrfs_ioctl_same_args)
+#define FIDEDUPERANGE _IOWR(BTRFS_IOCTL_MAGIC, 54, \
+					 struct file_dedupe_range)
 
 #endif /* JDUPES_BTRFS_H */
