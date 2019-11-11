@@ -3,9 +3,21 @@
 # Emulates fdupes -1 output
 # Usage: jdupes command line | ./fdupes_oneline.sh
 
-while read LINE
+# This is a newline.
+IFS='
+'
+
+if [ "$1" = "-q" ] || [ "$1" = "--shell-quote" ]; then
+  # This only works with GNU (env printf) or bash (builtin printf).
+  # If you are using dash, change the command to use env printf...
+  escape() { printf '%q ' "$LINE"; }
+else
+  escape() { printf '%s' "$LINE" | sed 's/\\/\\\\/g; s/ /\\ /g'; printf ' '; }
+fi
+
+while read -r LINE
   do if [ -z "$LINE" ]
-    then echo
-    else echo -n "$LINE" | sed 's/ /\\ /g'; echo -n " "
+    then printf '\n'
+    else escape
   fi
 done
