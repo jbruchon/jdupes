@@ -75,6 +75,8 @@ COMPILER_OPTIONS += -DLOUD_DEBUG
 endif
 ifdef DEBUG
 COMPILER_OPTIONS += -DDEBUG
+else
+COMPILER_OPTIONS += -DNDEBUG
 endif
 ifdef HARDEN
 COMPILER_OPTIONS += -Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -fpie -Wl,-z,relro -Wl,-z,now
