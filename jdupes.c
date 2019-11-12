@@ -583,7 +583,10 @@ extern int getdirstats(const char * const restrict name,
  *  0 if all condition checks pass
  * -1 or 1 on compare result less/more
  * -2 on an absolute exclusion condition met
- *  2 on an absolute match condition met */
+ *  2 on an absolute match condition met
+ * -3 on exclusion due to isolation
+ * -4 on exlusion due to same filesystem
+ * -5 on exclusion due to permissions */
 extern int check_conditions(const file_t * const restrict file1, const file_t * const restrict file2)
 {
   if (file1 == NULL || file2 == NULL || file1->d_name == NULL || file2->d_name == NULL) nullptr("check_conditions()");
