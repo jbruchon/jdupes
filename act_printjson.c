@@ -21,6 +21,10 @@
 #define likely(x)   __builtin_expect((x),1)
 #define unlikely(x) __builtin_expect((x),0)
 
+#if defined(__GNU__) && !defined(PATH_MAX)
+#define PATH_MAX 1024
+#endif
+
 /** Decodes a single UTF-8 codepoint, consuming bytes. */
 static inline uint32_t decode_utf8(const char * restrict * const string) {
   uint32_t ret = 0;
