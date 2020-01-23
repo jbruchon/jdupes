@@ -16,12 +16,17 @@ extern "C" {
  #define NO_SYMLINKS 1
  #define NO_PERMS 1
  #define NO_SIGACTION 1
+ #define MAX_HARDLINK_COUNT 1023 
  #ifndef WIN32_LEAN_AND_MEAN
   #define WIN32_LEAN_AND_MEAN
  #endif
  #include <windows.h>
  #include <io.h>
  #include "win_stat.h"
+#else
+  /* this is the maximum number of hardlinks per file on ext4. For other file systems this can be relaxed. 
+     Would need a specific configuration option or probing at the beginning */
+ #define MAX_HARDLINK_COUNT 65000 
 #endif /* Win32 */
 
 #include <limits.h>

@@ -673,19 +673,18 @@ static int check_singlefile(file_t * const restrict newfile)
     }
   }
 
-#ifdef ON_WINDOWS
-  /* Windows has a 1023 (+1) hard link limit. If we're hard linking,
-   * ignore all files that have hit this limit */
+  /* Windows has a 1023 (+1) hard link limit. On linux/ext4 it is 65000; 
+   * If we're hard linking, ignore all files that have hit this limit */
  #ifndef NO_HARDLINKS
-  if (ISFLAG(flags, F_HARDLINKFILES) && newfile->nlink >= 1024) {
+  if (ISFLAG(flags, F_HARDLINKFILES) && newfile->nlink >= MAX_HARDLINK_COUNT) {
   #ifdef DEBUG
     hll_exclude++;
   #endif
-    LOUD(fprintf(stderr, "check_singlefile: excluding due to Windows 1024 hard link limit\n"));
+    LOUD(fprintf(stderr, "check_singlefile: excluding due to %i hard link limit\n", MAX_HARDLINK_COUNT));
     return 1;
   }
  #endif /* NO_HARDLINKS */
-#endif /* ON_WINDOWS */
+
   return 0;
 }
 
@@ -1507,7 +1506,9 @@ static inline void help_text(void)
 #ifndef NO_HARDLINKS
   printf(" -L --linkhard    \thard link all duplicate files without prompting\n");
  #ifdef ON_WINDOWS
-  printf("                  \tWindows allows a maximum of 1023 hard links per file\n");
+  printf("                  \tWindows allows a maximum of %i hard links per file\n", MAX_HARDLINK_COUNT);
+#else
+  printf("                  \t(max number hard links per file: %i)\n", MAX_HARDLINK_COUNT);
  #endif /* ON_WINDOWS */
 #endif /* NO_HARDLINKS */
   printf(" -m --summarize   \tsummarize dupe information\n");

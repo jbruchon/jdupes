@@ -165,27 +165,25 @@ extern void linkfiles(file_t *files, const int hard)
           fwprint(stderr, dupelist[x]->d_name, 1);
           continue;
         }
-#ifdef ON_WINDOWS
-        /* For Windows, the hard link count maximum is 1023 (+1); work around
-         * by skipping linking or changing the link source file as needed */
+        /* For Windows, the hard link count maximum is 1023 (+1); On Linux/ext4 file system the hard link count maximum is 65000;
+           work around by skipping linking or changing the link source file as needed */
         if (STAT(srcfile->d_name, &s) != 0) {
-          fprintf(stderr, "warning: win_stat() on source file failed, changing source file:\n[SRC] ");
+          fprintf(stderr, "warning: stat() on source file failed, changing source file:\n[SRC] ");
           fwprint(stderr, dupelist[x]->d_name, 1);
           srcfile = dupelist[x];
           continue;
         }
-        if (s.st_nlink >= 1024) {
+        if (s.st_nlink >= MAX_HARDLINK_COUNT) {
           fprintf(stderr, "warning: maximum source link count reached, changing source file:\n[SRC] ");
           srcfile = dupelist[x];
           continue;
         }
         if (STAT(dupelist[x]->d_name, &s) != 0) continue;
-        if (s.st_nlink >= 1024) {
+        if (s.st_nlink >= MAX_HARDLINK_COUNT) {
           fprintf(stderr, "warning: maximum destination link count reached, skipping:\n-//-> ");
           fwprint(stderr, dupelist[x]->d_name, 1);
           continue;
         }
-#endif
 
         /* Make sure the name will fit in the buffer before trying */
         name_len = strlen(dupelist[x]->d_name) + 14;
