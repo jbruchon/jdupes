@@ -732,17 +732,30 @@ static struct travdone *travdone_alloc(const jdupes_ino_t inode, const dev_t dev
   return trav;
 }
 
-
 /* De-allocate the travdone tree */
 static void travdone_free(struct travdone * const restrict cur)
 {
   if (cur == NULL) return;
-  if (cur->left != NULL) travdone_free(cur->left);
-  if (cur->right != NULL) travdone_free(cur->right);
-  string_free(cur);
+
+  /* avoid recursions for unbalanced trees -- otherwise this can easily lead to stack overflows */
+  struct travdone * restrict mcur = cur ;
+  while ((mcur->left != NULL && mcur->right == NULL) || (mcur->left == NULL && mcur->right != NULL))
+    {
+      struct travdone * restrict n = NULL ;
+      if (mcur->left!=NULL)
+	n=mcur->left ;
+      else
+	n=mcur->right ;
+      string_free(mcur) ;
+      mcur=n ;
+    }
+  
+  if (mcur->left != NULL) travdone_free(mcur->left);
+  if (mcur->right != NULL) travdone_free(mcur->right);
+  string_free(mcur);
+  
   return;
 }
-
 
 /* Add a single file to the file tree */
 static inline file_t *grokfile(const char * const restrict name, file_t * restrict * const restrict filelistp)
