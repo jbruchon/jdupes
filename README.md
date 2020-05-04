@@ -127,8 +127,9 @@ option is specified (delete, summarize, link, dedupe, etc.)
                         each set of duplicates and delete the rest without
                         prompting the user
  -o --order=BY          select sort order for output, linking and deleting; by
- -O --paramorder        Parameter order is more important than selected -O sort
                         mtime (BY=time) or filename (BY=name, the default)
+ -O --paramorder        list matches in order specified by command line parameter sequence
+                        Precedence: -o sorts match groups, then -O sorts inside each group
  -p --permissions       don't consider files with different owner/group or
                         permission bits as duplicates
  -P --print=type        print extra info (partial, early, fullhash)
