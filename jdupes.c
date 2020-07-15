@@ -1153,13 +1153,6 @@ static int hash_and_compare(file_t * const restrict file1,
   if (partial) fsize = PARTIAL_HASH_SIZE;
   else fsize = file1->size;  /* files always match in size if they make it this far */
 
-  /* Initialize the hash and file read parameters (with filehash_partial skipped)
-   *
-   * If we already hashed the first chunk of this file, we don't want to
-   * wastefully read and hash it again, so skip the first chunk and use
-   * the computed hash for that chunk as our starting point.
-   */
-
   errno = 0;
 #ifdef UNICODE
   if (!M2W(file1->d_name, wstr)) file1 = NULL;
@@ -1210,6 +1203,8 @@ static int hash_and_compare(file_t * const restrict file1,
       if (partial) {
         file1->filehash_partial = XXH64_digest(xxhstate1);
         file2->filehash_partial = XXH64_digest(xxhstate2);
+        SETFLAG(file1->flags, FF_HASH_PARTIAL);
+        SETFLAG(file2->flags, FF_HASH_PARTIAL);
       }
       fclose(fp1); fclose(fp2);
       XXH64_freeState(xxhstate1); XXH64_freeState(xxhstate2);
@@ -1235,9 +1230,13 @@ static int hash_and_compare(file_t * const restrict file1,
   if (partial) {
     file1->filehash_partial = XXH64_digest(xxhstate1);
     file2->filehash_partial = XXH64_digest(xxhstate2);
+    SETFLAG(file1->flags, FF_HASH_PARTIAL);
+    SETFLAG(file2->flags, FF_HASH_PARTIAL);
   } else {
     file1->filehash = XXH64_digest(xxhstate1);
     file2->filehash = XXH64_digest(xxhstate2);
+    SETFLAG(file1->flags, FF_HASH_FULL);
+    SETFLAG(file2->flags, FF_HASH_FULL);
   }
 
   XXH64_freeState(xxhstate1);
@@ -1414,6 +1413,7 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
 {
   int cmpresult = 0;
   int cantmatch = 0;
+  int hac;
   const jdupes_hash_t * restrict filehash;
 
   if (tree == NULL || file == NULL || tree->file == NULL || tree->file->d_name == NULL || file->d_name == NULL) nullptr("checkmatch()");
@@ -1451,6 +1451,7 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
   /* If preliminary matching succeeded, do main file data checks */
   if (cmpresult == 0) {
     LOUD(fprintf(stderr, "checkmatch: starting file data comparisons\n"));
+
     /* Attempt to exclude files quickly with partial file hashing */
     if (!ISFLAG(tree->file->flags, FF_HASH_PARTIAL)) {
       filehash = get_filehash(tree->file, PARTIAL_HASH_SIZE);
@@ -1497,21 +1498,8 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
         LOUD(fprintf(stderr, "checkmatch: skipping full file hashes (F_SKIPMATCH)\n"));
       } else {
         /* If partial match was correct, perform a full file hash match */
-        if (!ISFLAG(tree->file->flags, FF_HASH_FULL)) {
-          filehash = get_filehash(tree->file, 0);
-          if (filehash == NULL) return NULL;
-
-          tree->file->filehash = *filehash;
-          SETFLAG(tree->file->flags, FF_HASH_FULL);
-        }
-
-        if (!ISFLAG(file->flags, FF_HASH_FULL)) {
-          filehash = get_filehash(file, 0);
-          if (filehash == NULL) return NULL;
-
-          file->filehash = *filehash;
-          SETFLAG(file->flags, FF_HASH_FULL);
-        }
+        hac = hash_and_compare(file, tree->file, 0);
+	if (hac == 1) return &tree->file;
 
         /* Full file hash comparison */
         cmpresult = HASH_COMPARE(file->filehash, tree->file->filehash);
