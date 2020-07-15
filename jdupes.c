@@ -1122,12 +1122,11 @@ error_overflow:
 
 /* Hash and compare two candidates at once
  * WARNING: file sizes MUST be equal */
-static int hash_and_compare(const file_t * const restrict file1,
-		const file_t * const restrict file2)
+static int hash_and_compare(file_t * const restrict file1,
+		file_t * const restrict file2, int partial)
 {
   off_t fsize;
   /* This is an array because we return a pointer to it */
-  static jdupes_hash_t hash1[1], hash2[1];
   static jdupes_hash_t *chunk1 = NULL, *chunk2 = NULL;
   FILE *fp1, *fp2;
   int check = 0;
@@ -1148,13 +1147,11 @@ static int hash_and_compare(const file_t * const restrict file1,
   /* Get the file size. If we can't read it, bail out early */
   if (file1->size == -1 || file2->size == -1) {
     LOUD(fprintf(stderr, "hash_and_compare: not hashing because stat() info is bad\n"));
-    return NULL;
+    return -1;
   }
-  fsize = file1->size;  /* files always match in size if they make it this far */
 
-  /* Do not read more than the requested number of bytes */
-  if (max_read > 0 && fsize > (off_t)max_read)
-    fsize = (off_t)max_read;
+  if (partial) fsize = PARTIAL_HASH_SIZE;
+  else fsize = file1->size;  /* files always match in size if they make it this far */
 
   /* Initialize the hash and file read parameters (with filehash_partial skipped)
    *
@@ -1163,7 +1160,6 @@ static int hash_and_compare(const file_t * const restrict file1,
    * the computed hash for that chunk as our starting point.
    */
 
-  *hash = 0;
   errno = 0;
 #ifdef UNICODE
   if (!M2W(file1->d_name, wstr)) file1 = NULL;
@@ -1175,13 +1171,14 @@ static int hash_and_compare(const file_t * const restrict file1,
   fp2 = fopen(file2->d_name, FILE_MODE_RO);
 #endif
   if (fp1 == NULL) {
-    fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, fp1->d_name, 1);
-    return NULL;
+    fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, file1->d_name, 1);
+    return -1;
   }
   if (fp2 == NULL) {
-    fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, fp2->d_name, 1);
-    return NULL;
+    fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, file2->d_name, 1);
+    return -1;
   }
+
 
   xxhstate1 = XXH64_createState();
   xxhstate2 = XXH64_createState();
@@ -1196,13 +1193,32 @@ static int hash_and_compare(const file_t * const restrict file1,
 
     if (interrupt) return 0;
     bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
-    if (fread((void *)chunk, bytes_to_read, 1, file) != 1) {
-      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, checkfile->d_name, 1);
-      fclose(file);
-      return NULL;
+    if (fread((void *)chunk1, bytes_to_read, 1, fp1) != 1) {
+      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, file1->d_name, 1);
+      fclose(fp1);
+      return -1;
+    }
+    if (fread((void *)chunk2, bytes_to_read, 1, fp2) != 1) {
+      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, file2->d_name, 1);
+      fclose(fp2);
+      return -1;
     }
 
-    XXH64_update(xxhstate, chunk, bytes_to_read);
+    /* Compare blocks, aborting on any difference */
+    if (!memcmp(chunk1, chunk2, bytes_to_read)) {
+      /* Save partial hash if requested */
+      if (partial) {
+        file1->filehash_partial = XXH64_digest(xxhstate1);
+        file2->filehash_partial = XXH64_digest(xxhstate2);
+      }
+      fclose(fp1); fclose(fp2);
+      XXH64_freeState(xxhstate1); XXH64_freeState(xxhstate2);
+      return 0;
+    }
+
+    /* Hash successful blocks */
+    XXH64_update(xxhstate1, chunk1, bytes_to_read);
+    XXH64_update(xxhstate2, chunk2, bytes_to_read);
 
     if ((off_t)bytes_to_read > fsize) break;
     else fsize -= (off_t)bytes_to_read;
@@ -1210,20 +1226,26 @@ static int hash_and_compare(const file_t * const restrict file1,
     if (!ISFLAG(flags, F_HIDEPROGRESS)) {
       check++;
       if (check > CHECK_MINIMUM) {
-        update_progress("hashing", (int)(((checkfile->size - fsize) * 100) / checkfile->size));
+        update_progress("hash/cmp", (int)(((file1->size - fsize) * 100) / file1->size));
         check = 0;
       }
     }
   }
 
-  fclose(file);
+  if (partial) {
+    file1->filehash_partial = XXH64_digest(xxhstate1);
+    file2->filehash_partial = XXH64_digest(xxhstate2);
+  } else {
+    file1->filehash = XXH64_digest(xxhstate1);
+    file2->filehash = XXH64_digest(xxhstate2);
+  }
 
-  *hash = XXH64_digest(xxhstate1);
-  *hash = XXH64_digest(xxhstate2);
   XXH64_freeState(xxhstate1);
   XXH64_freeState(xxhstate2);
+  fclose(fp1);
+  fclose(fp2);
 
-  LOUD(fprintf(stderr, "hash_and_compare: returning hash: 0x%016jx\n", (uintmax_t)*hash));
+  LOUD(fprintf(stderr, "hash_and_compare: files matched\n");)
   return 1;
 error_size_mismatch:
   fprintf(stderr, "internal error: hash_and_compare: file sizes do not match\n");
