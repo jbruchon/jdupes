@@ -1120,10 +1120,10 @@ error_overflow:
 }
 
 
-/* Hash and compare two candidates at once
- * WARNING: file sizes MUST be equal */
+/* Hash and compare two files at once. WARNING: file sizes MUST be equal
+ * mode: 0 = full HaC, 1 = partial only, 2 = compare only */
 static int hash_and_compare(file_t * const restrict file1,
-		file_t * const restrict file2, int partial)
+                file_t * const restrict file2, const int mode)
 {
   off_t fsize;
   /* This is an array because we return a pointer to it */
@@ -1132,8 +1132,8 @@ static int hash_and_compare(file_t * const restrict file1,
   int check = 0;
   XXH64_state_t *xxhstate1, *xxhstate2;
 
-  if (file1 == NULL || file1->d_name == NULL || file2 == NULL
-		  || file2->d_name == NULL) nullptr("hash_and_compare()");
+  if (file1 == NULL || file1->d_name == NULL || file2 == NULL || file2->d_name == NULL)
+    nullptr("hash_and_compare()");
   if (file1->size != file2->size) goto error_size_mismatch;
   LOUD(fprintf(stderr, "hash_and_compare('%s', '%s')\n", file1->d_name, file2->d_name);)
 
@@ -1147,10 +1147,10 @@ static int hash_and_compare(file_t * const restrict file1,
   /* Get the file size. If we can't read it, bail out early */
   if (file1->size == -1 || file2->size == -1) {
     LOUD(fprintf(stderr, "hash_and_compare: not hashing because stat() info is bad\n"));
-    return -1;
+    return -128;
   }
 
-  if (partial) fsize = PARTIAL_HASH_SIZE;
+  if (mode == 1) fsize = PARTIAL_HASH_SIZE;
   else fsize = file1->size;  /* files always match in size if they make it this far */
 
   errno = 0;
@@ -1165,58 +1165,58 @@ static int hash_and_compare(file_t * const restrict file1,
 #endif
   if (fp1 == NULL) {
     fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, file1->d_name, 1);
-    return -1;
+    return -128;
   }
   if (fp2 == NULL) {
     fprintf(stderr, "\n%s error opening file(s) ", strerror(errno)); fwprint(stderr, file2->d_name, 1);
-    return -1;
+    return -128;
   }
 
-
-  xxhstate1 = XXH64_createState();
-  xxhstate2 = XXH64_createState();
-  if (xxhstate1 == NULL) nullptr("xxhstate");
-  if (xxhstate2 == NULL) nullptr("xxhstate");
-  XXH64_reset(xxhstate1, 0);
-  XXH64_reset(xxhstate2, 0);
+  /* Only hash if mode requires partial or full hashing */
+  if (mode != 2) {
+    xxhstate1 = XXH64_createState();
+    xxhstate2 = XXH64_createState();
+    if (xxhstate1 == NULL) nullptr("xxhstate");
+    if (xxhstate2 == NULL) nullptr("xxhstate");
+    XXH64_reset(xxhstate1, 0);
+    XXH64_reset(xxhstate2, 0);
+  }
 
   /* Read the file in CHUNK_SIZE chunks until we've read it all. */
   while (fsize > 0) {
     size_t bytes_to_read;
+    int cmpresult;
 
     if (interrupt) return 0;
+fprintf(stderr, "1 btr unset, fsize %ld, acs %ld\n", fsize, auto_chunk_size);
     bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
-    if (fread((void *)chunk1, bytes_to_read, 1, fp1) != 1) {
-      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, file1->d_name, 1);
-      fclose(fp1);
-      return -1;
-    }
-    if (fread((void *)chunk2, bytes_to_read, 1, fp2) != 1) {
-      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, file2->d_name, 1);
-      fclose(fp2);
-      return -1;
-    }
+fprintf(stderr, "2 btr %ld, fsize %ld, acs %ld\n", bytes_to_read, fsize, auto_chunk_size);
+    if (fread((void *)chunk1, bytes_to_read, 1, fp1) != 1 && ferror(fp1) != 0) goto error_read_file1;
+    if (fread((void *)chunk2, bytes_to_read, 1, fp2) != 1 && ferror(fp2) != 0) goto error_read_file2;
 
     /* Compare blocks, aborting on any difference */
-    if (!memcmp(chunk1, chunk2, bytes_to_read)) {
+    cmpresult = memcmp(chunk1, chunk2, bytes_to_read);
+    if (cmpresult != 0) {
       /* Save partial hash if requested */
-      if (partial) {
+      if (mode == 1) {
         file1->filehash_partial = XXH64_digest(xxhstate1);
         file2->filehash_partial = XXH64_digest(xxhstate2);
         SETFLAG(file1->flags, FF_HASH_PARTIAL);
         SETFLAG(file2->flags, FF_HASH_PARTIAL);
       }
       fclose(fp1); fclose(fp2);
-      XXH64_freeState(xxhstate1); XXH64_freeState(xxhstate2);
-      return 0;
+      if (mode != 2) { XXH64_freeState(xxhstate1); XXH64_freeState(xxhstate2); }
+      return cmpresult;
     }
 
     /* Hash successful blocks */
-    XXH64_update(xxhstate1, chunk1, bytes_to_read);
-    XXH64_update(xxhstate2, chunk2, bytes_to_read);
+    if (mode != 2) {
+      XXH64_update(xxhstate1, chunk1, bytes_to_read);
+      XXH64_update(xxhstate2, chunk2, bytes_to_read);
+    }
 
-    if ((off_t)bytes_to_read > fsize) break;
-    else fsize -= (off_t)bytes_to_read;
+    fsize -= (off_t)bytes_to_read;
+fprintf(stderr, "3 btr %ld, fsize %ld, acs %ld\n", bytes_to_read, fsize, auto_chunk_size);
 
     if (!ISFLAG(flags, F_HIDEPROGRESS)) {
       check++;
@@ -1227,138 +1227,46 @@ static int hash_and_compare(file_t * const restrict file1,
     }
   }
 
-  if (partial) {
-    file1->filehash_partial = XXH64_digest(xxhstate1);
-    file2->filehash_partial = XXH64_digest(xxhstate2);
-    SETFLAG(file1->flags, FF_HASH_PARTIAL);
-    SETFLAG(file2->flags, FF_HASH_PARTIAL);
-  } else {
-    file1->filehash = XXH64_digest(xxhstate1);
-    file2->filehash = XXH64_digest(xxhstate2);
-    SETFLAG(file1->flags, FF_HASH_FULL);
-    SETFLAG(file2->flags, FF_HASH_FULL);
+  /* Assign partial or full hashes if mode is set appropriately */
+  if (mode != 2) {
+    if (mode == 1) {
+      file1->filehash_partial = XXH64_digest(xxhstate1);
+      file2->filehash_partial = XXH64_digest(xxhstate2);
+      SETFLAG(file1->flags, FF_HASH_PARTIAL);
+      SETFLAG(file2->flags, FF_HASH_PARTIAL);
+    }
+    if (mode == 0) {
+      file1->filehash = XXH64_digest(xxhstate1);
+      file2->filehash = XXH64_digest(xxhstate2);
+      SETFLAG(file1->flags, FF_HASH_FULL);
+      SETFLAG(file2->flags, FF_HASH_FULL);
+    }
+    XXH64_freeState(xxhstate1);
+    XXH64_freeState(xxhstate2);
   }
 
-  XXH64_freeState(xxhstate1);
-  XXH64_freeState(xxhstate2);
   fclose(fp1);
   fclose(fp2);
 
   LOUD(fprintf(stderr, "hash_and_compare: files matched\n");)
-  return 1;
+  return 0;
 error_size_mismatch:
   fprintf(stderr, "internal error: hash_and_compare: file sizes do not match\n");
   return -1;
-}
-
-
-/* Hash part or all of a file */
-static jdupes_hash_t *get_filehash(const file_t * const restrict checkfile,
-                const size_t max_read)
-{
-  off_t fsize;
-  /* This is an array because we return a pointer to it */
-  static jdupes_hash_t hash[1];
-  static jdupes_hash_t *chunk = NULL;
-  FILE *file;
-  int check = 0;
-  XXH64_state_t *xxhstate;
-
-  if (checkfile == NULL || checkfile->d_name == NULL) nullptr("get_filehash()");
-  LOUD(fprintf(stderr, "get_filehash('%s', %" PRIdMAX ")\n", checkfile->d_name, (intmax_t)max_read);)
-
-  /* Allocate on first use */
-  if (chunk == NULL) {
-    chunk = (jdupes_hash_t *)string_malloc(auto_chunk_size);
-    if (!chunk) oom("get_filehash() chunk");
-  }
-
-  /* Get the file size. If we can't read it, bail out early */
-  if (checkfile->size == -1) {
-    LOUD(fprintf(stderr, "get_filehash: not hashing because stat() info is bad\n"));
-    return NULL;
-  }
-  fsize = checkfile->size;
-
-  /* Do not read more than the requested number of bytes */
-  if (max_read > 0 && fsize > (off_t)max_read)
-    fsize = (off_t)max_read;
-
-  /* Initialize the hash and file read parameters (with filehash_partial skipped)
-   *
-   * If we already hashed the first chunk of this file, we don't want to
-   * wastefully read and hash it again, so skip the first chunk and use
-   * the computed hash for that chunk as our starting point.
-   */
-
-  *hash = 0;
-  if (ISFLAG(checkfile->flags, FF_HASH_PARTIAL)) {
-    *hash = checkfile->filehash_partial;
-    /* Don't bother going further if max_read is already fulfilled */
-    if (max_read != 0 && max_read <= PARTIAL_HASH_SIZE) {
-      LOUD(fprintf(stderr, "Partial hash size (%d) >= max_read (%" PRIuMAX "), not hashing anymore\n", PARTIAL_HASH_SIZE, (uintmax_t)max_read);)
-      return hash;
-    }
-  }
-  errno = 0;
-#ifdef UNICODE
-  if (!M2W(checkfile->d_name, wstr)) file = NULL;
-  else file = _wfopen(wstr, FILE_MODE_RO);
-#else
-  file = fopen(checkfile->d_name, FILE_MODE_RO);
-#endif
-  if (file == NULL) {
-    fprintf(stderr, "\n%s error opening file ", strerror(errno)); fwprint(stderr, checkfile->d_name, 1);
-    return NULL;
-  }
-  /* Actually seek past the first chunk if applicable
-   * This is part of the filehash_partial skip optimization */
-  if (ISFLAG(checkfile->flags, FF_HASH_PARTIAL)) {
-    if (fseeko(file, PARTIAL_HASH_SIZE, SEEK_SET) == -1) {
-      fclose(file);
-      fprintf(stderr, "\nerror seeking in file "); fwprint(stderr, checkfile->d_name, 1);
-      return NULL;
-    }
-    fsize -= PARTIAL_HASH_SIZE;
-  }
-
-  xxhstate = XXH64_createState();
-  if (xxhstate == NULL) nullptr("xxhstate");
-  XXH64_reset(xxhstate, 0);
-
-  /* Read the file in CHUNK_SIZE chunks until we've read it all. */
-  while (fsize > 0) {
-    size_t bytes_to_read;
-
-    if (interrupt) return 0;
-    bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
-    if (fread((void *)chunk, bytes_to_read, 1, file) != 1) {
-      fprintf(stderr, "\nerror reading from file "); fwprint(stderr, checkfile->d_name, 1);
-      fclose(file);
-      return NULL;
-    }
-
-    XXH64_update(xxhstate, chunk, bytes_to_read);
-
-    if ((off_t)bytes_to_read > fsize) break;
-    else fsize -= (off_t)bytes_to_read;
-
-    if (!ISFLAG(flags, F_HIDEPROGRESS)) {
-      check++;
-      if (check > CHECK_MINIMUM) {
-        update_progress("hashing", (int)(((checkfile->size - fsize) * 100) / checkfile->size));
-        check = 0;
-      }
-    }
-  }
-
-  fclose(file);
-
-  *hash = XXH64_digest(xxhstate);
-  XXH64_freeState(xxhstate);
-
-  LOUD(fprintf(stderr, "get_filehash: returning hash: 0x%016jx\n", (uintmax_t)*hash));
-  return hash;
+error_read_file1:
+  fprintf(stderr, "\nerror reading from file(1) "); fwprint(stderr, file1->d_name, 1);
+  if (feof(fp1) != 0) fprintf(stderr, "file(1) EOF\n");
+  if (ferror(fp1) != 0) fprintf(stderr, "file(1) error\n");
+  goto error_read_finish;
+error_read_file2:
+  fprintf(stderr, "\nerror reading from file(2) "); fwprint(stderr, file2->d_name, 1);
+  if (feof(fp2) != 0) fprintf(stderr, "file(2) EOF\n");
+  if (ferror(fp2) != 0) fprintf(stderr, "file(2) error\n");
+  goto error_read_finish;
+error_read_finish:
+  fclose(fp1); fclose(fp2);
+  if (mode != 2) { XXH64_freeState(xxhstate1); XXH64_freeState(xxhstate2); }
+  return -128;
 }
 
 
@@ -1413,8 +1321,6 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
 {
   int cmpresult = 0;
   int cantmatch = 0;
-  int hac;
-  const jdupes_hash_t * restrict filehash;
 
   if (tree == NULL || file == NULL || tree->file == NULL || tree->file->d_name == NULL || file->d_name == NULL) nullptr("checkmatch()");
   LOUD(fprintf(stderr, "checkmatch ('%s', '%s')\n", tree->file->d_name, file->d_name));
@@ -1453,23 +1359,8 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
     LOUD(fprintf(stderr, "checkmatch: starting file data comparisons\n"));
 
     /* Attempt to exclude files quickly with partial file hashing */
-    if (!ISFLAG(tree->file->flags, FF_HASH_PARTIAL)) {
-      filehash = get_filehash(tree->file, PARTIAL_HASH_SIZE);
-      if (filehash == NULL) return NULL;
+    cmpresult = hash_and_compare(file, tree->file, 1);
 
-      tree->file->filehash_partial = *filehash;
-      SETFLAG(tree->file->flags, FF_HASH_PARTIAL);
-    }
-
-    if (!ISFLAG(file->flags, FF_HASH_PARTIAL)) {
-      filehash = get_filehash(file, PARTIAL_HASH_SIZE);
-      if (filehash == NULL) return NULL;
-
-      file->filehash_partial = *filehash;
-      SETFLAG(file->flags, FF_HASH_PARTIAL);
-    }
-
-    cmpresult = HASH_COMPARE(file->filehash_partial, tree->file->filehash_partial);
     LOUD(if (!cmpresult) fprintf(stderr, "checkmatch: partial hashes match\n"));
     LOUD(if (cmpresult) fprintf(stderr, "checkmatch: partial hashes do not match\n"));
     DBG(partial_hash++;)
@@ -1497,15 +1388,20 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
         /* Skip full file hashing if requested by the user */
         LOUD(fprintf(stderr, "checkmatch: skipping full file hashes (F_SKIPMATCH)\n"));
       } else {
-        /* If partial match was correct, perform a full file hash match */
-        hac = hash_and_compare(file, tree->file, 0);
-	if (hac == 1) return &tree->file;
-
-        /* Full file hash comparison */
-        cmpresult = HASH_COMPARE(file->filehash, tree->file->filehash);
-        LOUD(if (!cmpresult) fprintf(stderr, "checkmatch: full hashes match\n"));
-        LOUD(if (cmpresult) fprintf(stderr, "checkmatch: full hashes do not match\n"));
-        DBG(full_hash++);
+        if (!ISFLAG(file->flags, FF_HASH_FULL) && !ISFLAG(tree->file->flags, FF_HASH_FULL)) {
+          /* If neither file has been full-hashed, do a parallel hash-and-compare */
+          cmpresult = hash_and_compare(file, tree->file, 0);
+          if (cmpresult == 0) return &tree->file;
+        } else {
+          /* Full file hash comparison */
+          if (ISFLAG(file->flags, FF_HASH_FULL) && ISFLAG(tree->file->flags, FF_HASH_FULL))
+            cmpresult = HASH_COMPARE(file->filehash, tree->file->filehash);
+          /* Confirm match */
+          if (cmpresult == 0) cmpresult = hash_and_compare(file, tree->file, 2);
+          LOUD(if (!cmpresult) fprintf(stderr, "checkmatch: full hashes match\n"));
+          LOUD(if (cmpresult) fprintf(stderr, "checkmatch: full hashes do not match\n"));
+          DBG(full_hash++);
+        }
       }
     } else {
       DBG(partial_elim++);
@@ -1562,50 +1458,6 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
   }
   /* Fall through - should never be reached */
   return NULL;
-}
-
-
-/* Do a byte-by-byte comparison in case two different files produce the
-   same signature. Unlikely, but better safe than sorry. */
-static inline int confirmmatch(FILE * const restrict file1, FILE * const restrict file2, const off_t size)
-{
-  static char *c1 = NULL, *c2 = NULL;
-  size_t r1, r2;
-  off_t bytes = 0;
-  int check = 0;
-
-  if (file1 == NULL || file2 == NULL) nullptr("confirmmatch()");
-  LOUD(fprintf(stderr, "confirmmatch running\n"));
-
-  /* Allocate on first use; OOM if either is ever NULLed */
-  if (!c1) {
-    c1 = (char *)string_malloc(auto_chunk_size);
-    c2 = (char *)string_malloc(auto_chunk_size);
-  }
-  if (!c1 || !c2) oom("confirmmatch() c1/c2");
-
-  fseek(file1, 0, SEEK_SET);
-  fseek(file2, 0, SEEK_SET);
-
-  do {
-    if (interrupt) return 0;
-    r1 = fread(c1, sizeof(char), auto_chunk_size, file1);
-    r2 = fread(c2, sizeof(char), auto_chunk_size, file2);
-
-    if (r1 != r2) return 0; /* file lengths are different */
-    if (memcmp (c1, c2, r1)) return 0; /* file contents are different */
-
-    if (!ISFLAG(flags, F_HIDEPROGRESS)) {
-      check++;
-      bytes += (off_t)r1;
-      if (check > CHECK_MINIMUM) {
-        update_progress("confirm", (int)((bytes * 100) / size));
-        check = 0;
-      }
-    }
-  } while (r2);
-
-  return 1;
 }
 
 
@@ -2363,32 +2215,7 @@ int main(int argc, char **argv)
         goto skip_full_check;
       }
 
-#ifdef UNICODE
-      if (!M2W(curfile->d_name, wstr)) file1 = NULL;
-      else file1 = _wfopen(wstr, FILE_MODE_RO);
-#else
-      file1 = fopen(curfile->d_name, FILE_MODE_RO);
-#endif
-      if (!file1) {
-        LOUD(fprintf(stderr, "MAIN: warning: file1 fopen() failed ('%s')\n", curfile->d_name));
-        curfile = curfile->next;
-        continue;
-      }
-
-#ifdef UNICODE
-      if (!M2W((*match)->d_name, wstr)) file2 = NULL;
-      else file2 = _wfopen(wstr, FILE_MODE_RO);
-#else
-      file2 = fopen((*match)->d_name, FILE_MODE_RO);
-#endif
-      if (!file2) {
-        fclose(file1);
-        LOUD(fprintf(stderr, "MAIN: warning: file2 fopen() failed ('%s')\n", (*match)->d_name));
-        curfile = curfile->next;
-        continue;
-      }
-
-      if (confirmmatch(file1, file2, curfile->size)) {
+      if (hash_and_compare(curfile, *match, 2) == 0) {
         LOUD(fprintf(stderr, "MAIN: registering matched file pair\n"));
         registerpair(match, curfile,
             (ordertype == ORDER_TIME) ? sort_pairs_by_mtime : sort_pairs_by_filename);
