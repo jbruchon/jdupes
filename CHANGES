@@ -21,7 +21,7 @@ jdupes 1.17.0
 
 jdupes 1.16.0
 
-- Add -X noext/onlyext filters to exclude/requite specific file extension(s)
+- Add -X noext/onlyext filters to exclude/require specific file extension(s)
 - Added in-depth help text for -X/--extfilter (use -X help to view)
 - Clarify hard link limit behavior on Windows in program help text
 - This version still has BTRFS dedupe issues and file add-by-name disabled
