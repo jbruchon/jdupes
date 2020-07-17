@@ -326,7 +326,7 @@ once from each file and may improve performance when scanning lots of files
 that are larger than the default chunk size by reducing "thrashing" of the
 hard disk heads. Smaller numbers may increase algorithm speed depending on
 the characteristics of your CPU but will usually increase I/O and system
-call overhead as well. The nubmer also directly affects memory usage: I/O
+call overhead as well. The number also directly affects memory usage: I/O
 chunk size is used for at least three allocations in the program, so using
 a chunk size of 16777216 (16 MiB) will require 48 MiB of RAM. The default
 is usually between 32768 and 65536 which results in the fastest raw speed
