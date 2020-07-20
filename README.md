@@ -178,6 +178,7 @@ option is specified (delete, summarize, link, dedupe, etc.)
                         EXTREMELY DANGEROUS paired with destructive actions!
                         -T must be specified twice to work. Read the manual!
  -u --printunique       print only a list of unique (non-matched) files
+ -U --notravcheck 	disable double-traversal safety check (BE VERY CAREFUL)
  -v --version           display jdupes version and license information
  -x --xsize=SIZE        exclude files of size < SIZE bytes from consideration
     --xsize=+SIZE       '+' specified before SIZE, exclude size > SIZE
@@ -221,7 +222,21 @@ cause only files of exactly 100 bytes in size to be included.
 
 For sizes, K/M/G/T/P/E[B|iB] suffixes can be used (case-insensitive)
 
-The `-t`/`-nochangecheck` option disables file change checks during/after
+The `-U`/`--notravcheck` option disables the double-traversal prevention tree.
+In the VAST MAJORITY of circumstances, this SHOULD NOT BE DONE, as it protects
+against several dangerous user errors, including specifying the same files or
+directories twice causing them to match themselves and potentially be lost or
+irreversibly damaged, or a symbolic link to a directory making an endless loop
+of recursion that will cause the program to hang indefinitely. This option was
+added because Google Drive File Stream presents directories in the virtual hard
+drive used by GDFS with identical device:inode pairs despite the directories
+actually being different. This triggers double-traversal prevention against
+every directory, effectively blocking all recursion. Disabling this check will
+reduce safety, but will allow duplicate scanning inside Google Drive File
+Stream drives. This also results in a very minor speed boost during recursion,
+but the boost is unlikely to be noticeable.
+
+The `-t`/`--nochangecheck` option disables file change checks during/after
 scanning. This opens a security vulnerability that is called a TOCTTOU (time
 of check to time of use) vulnerability. The program normally runs checks
 immediately before scanning or taking action upon a file to see if the file
@@ -326,7 +341,7 @@ once from each file and may improve performance when scanning lots of files
 that are larger than the default chunk size by reducing "thrashing" of the
 hard disk heads. Smaller numbers may increase algorithm speed depending on
 the characteristics of your CPU but will usually increase I/O and system
-call overhead as well. The nubmer also directly affects memory usage: I/O
+call overhead as well. The number also directly affects memory usage: I/O
 chunk size is used for at least three allocations in the program, so using
 a chunk size of 16777216 (16 MiB) will require 48 MiB of RAM. The default
 is usually between 32768 and 65536 which results in the fastest raw speed

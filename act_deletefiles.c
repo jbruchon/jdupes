@@ -72,7 +72,7 @@ extern void deletefiles(file_t *files, int prompt, FILE *tty)
         /* prompt for files to preserve */
         printf("Set %u of %u: keep which files? (1 - %u, [a]ll, [n]one)",
           curgroup, groups, counter);
-        if (ISFLAG(flags, F_SHOWSIZE)) printf(" (%" PRIuMAX " byte%c each)", (uintmax_t)files->size,
+        if (ISFLAG(a_flags, FA_SHOWSIZE)) printf(" (%" PRIuMAX " byte%c each)", (uintmax_t)files->size,
           (files->size != 1) ? 's' : ' ');
         printf(": ");
         fflush(stdout);

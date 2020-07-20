@@ -16,13 +16,13 @@ extern void printmatches(file_t * restrict files)
 
   LOUD(fprintf(stderr, "printmatches: %p\n", files));
 
-  if (ISFLAG(flags, F_PRINTNULL)) cr = 2;
+  if (ISFLAG(a_flags, FA_PRINTNULL)) cr = 2;
 
   while (files != NULL) {
     if (ISFLAG(files->flags, FF_HAS_DUPES)) {
       printed = 1;
-      if (!ISFLAG(flags, F_OMITFIRST)) {
-        if (ISFLAG(flags, F_SHOWSIZE)) printf("%" PRIdMAX " byte%c each:\n", (intmax_t)files->size,
+      if (!ISFLAG(a_flags, FA_OMITFIRST)) {
+        if (ISFLAG(a_flags, FA_SHOWSIZE)) printf("%" PRIdMAX " byte%c each:\n", (intmax_t)files->size,
             (files->size != 1) ? 's' : ' ');
         fwprint(stdout, files->d_name, cr);
       }
@@ -53,7 +53,7 @@ extern void printunique(file_t *files)
 
   LOUD(fprintf(stderr, "print_uniques: %p\n", files));
 
-  if (ISFLAG(flags, F_PRINTNULL)) cr = 2;
+  if (ISFLAG(a_flags, FA_PRINTNULL)) cr = 2;
 
   scan = files;
   while (scan != NULL) {
@@ -70,7 +70,7 @@ extern void printunique(file_t *files)
   while (files != NULL) {
     if (!ISFLAG(files->flags, FF_NOT_UNIQUE)) {
       printed = 1;
-      if (ISFLAG(flags, F_SHOWSIZE)) printf("%" PRIdMAX " byte%c each:\n", (intmax_t)files->size,
+      if (ISFLAG(a_flags, FA_SHOWSIZE)) printf("%" PRIdMAX " byte%c each:\n", (intmax_t)files->size,
           (files->size != 1) ? 's' : ' ');
       fwprint(stdout, files->d_name, cr);
     }

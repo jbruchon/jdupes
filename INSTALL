@@ -83,8 +83,10 @@ you can compile it with this make command and it'll even partially work:
 
 make standalone NO_UNICODE=1 CFLAGS_EXTRA='-DNO_PERMS -DNO_SYMLINKS -DNO_HARDLINKS'
 
-There are some crude "package" generators included as make targets:
+The standalone version is not maintained in parallel with standard jdupes and
+may be several versions behind. It is provided for convenience only.
 
-package     Uses chroots under /chroot to build Linux packages
-winpackage  Makes Windows MinGW 32-bit and 64-bit packages (zip)
-macpackage  Makes macOS 64-bit packages (zip)
+There are some package generators included as make targets:
+
+chrootpackage  Uses chroots under /chroot to build Linux packages
+package        Makes auto-detected macOS/Linux/Windows packages
