@@ -92,8 +92,8 @@ int err_mode = _O_TEXT;
 #include "jody_paths.h"
 #endif
 
-/* Behavior modification flags */
-uint_fast32_t flags = 0, p_flags = 0;
+/* Behavior modification flags (a=action, p=-P) */
+uint_fast32_t flags = 0, a_flags = 0, p_flags = 0;
 
 static const char *program_name;
 
@@ -769,7 +769,7 @@ static int check_singlefile(file_t * const restrict newfile)
   /* Windows has a 1023 (+1) hard link limit. If we're hard linking,
    * ignore all files that have hit this limit */
  #ifndef NO_HARDLINKS
-  if (ISFLAG(flags, F_HARDLINKFILES) && newfile->nlink >= 1024) {
+  if (ISFLAG(a_flags, FA_HARDLINKFILES) && newfile->nlink >= 1024) {
   #ifdef DEBUG
     hll_exclude++;
   #endif
@@ -957,9 +957,11 @@ static void grokdir(const char * const restrict dir,
   }
 
   /* Double traversal prevention tree */
-  i = traverse_check(device, inode);
-  if (i == 1) return;
-  if (i == 2) goto error_travdone;
+  if (!ISFLAG(flags, F_NOTRAVCHECK)) {
+    i = traverse_check(device, inode);
+    if (i == 1) return;
+    if (i == 2) goto error_travdone;
+  }
 
   item_progress++;
   grokdir_level++;
@@ -1656,6 +1658,7 @@ static inline void help_text(void)
   printf("                  \tEXTREMELY DANGEROUS paired with destructive actions!\n");
   printf("                  \t-T must be specified twice to work. Read the manual!\n");
   printf(" -u --printunique \tprint only a list of unique (non-matched) files\n");
+  printf(" -U --notravcheck \tdisable double-traversal safety check (BE VERY CAREFUL)\n");
   printf(" -v --version     \tdisplay jdupes version and license information\n");
   printf(" -x --xsize=SIZE  \texclude files of size < SIZE bytes from consideration\n");
   printf("    --xsize=+SIZE \t'+' specified before SIZE, exclude size > SIZE\n");
@@ -1763,6 +1766,7 @@ int main(int argc, char **argv)
     { "nochangecheck", 0, 0, 't' },
     { "partial-only", 0, 0, 'T' },
     { "printunique", 0, 0, 'u' },
+    { "notravcheck", 0, 0, 'U' },
     { "version", 0, 0, 'v' },
     { "xsize", 1, 0, 'x' },
     { "exclude", 1, 0, 'X' },
@@ -1775,6 +1779,8 @@ int main(int argc, char **argv)
 #else
 #define GETOPT getopt
 #endif
+
+#define GETOPT_STRING "@01ABC:DdfHhIijKlLmMnNOPp:QqRrSsTtUuVvZzo:x:X:"
 
 /* Windows buffers our stderr output; don't let it do that */
 #ifdef ON_WINDOWS
@@ -1820,8 +1826,7 @@ int main(int argc, char **argv)
 
   oldargv = cloneargs(argc, argv);
 
-  while ((opt = GETOPT(argc, argv,
-  "@01ABC:DdfHhIijKlLmMnNOPp:QqRrSsTtuVvZzo:x:X:"
+  while ((opt = GETOPT(argc, argv, GETOPT_STRING
 #ifndef OMIT_GETOPT_LONG
           , long_options, NULL
 #endif
@@ -1829,10 +1834,12 @@ int main(int argc, char **argv)
     if ((uintptr_t)optarg == 0x20) goto error_optarg;
     switch (opt) {
     case '0':
-      SETFLAG(flags, F_PRINTNULL);
+      SETFLAG(a_flags, FA_PRINTNULL);
+      LOUD(fprintf(stderr, "opt: print null instead of newline (--printnull)\n");)
       break;
     case '1':
       SETFLAG(flags, F_ONEFS);
+      LOUD(fprintf(stderr, "opt: recursion across filesystems disabled (--onefs)\n");)
       break;
     case 'A':
       SETFLAG(flags, F_EXCLUDEHIDDEN);
@@ -1847,7 +1854,8 @@ int main(int argc, char **argv)
       LOUD(fprintf(stderr, "Manual chunk size is %ld\n", manual_chunk_size));
       break;
     case 'd':
-      SETFLAG(flags, F_DELETEFILES);
+      SETFLAG(a_flags, FA_DELETEFILES);
+      LOUD(fprintf(stderr, "opt: delete files after matching (--deletefiles)\n");)
       break;
     case 'D':
 #ifdef DEBUG
@@ -1855,7 +1863,8 @@ int main(int argc, char **argv)
 #endif
       break;
     case 'f':
-      SETFLAG(flags, F_OMITFIRST);
+      SETFLAG(a_flags, FA_OMITFIRST);
+      LOUD(fprintf(stderr, "opt: omit first match from each match set (--omitfirst)\n");)
       break;
     case 'h':
       help_text();
@@ -1864,20 +1873,25 @@ int main(int argc, char **argv)
 #ifndef NO_HARDLINKS
     case 'H':
       SETFLAG(flags, F_CONSIDERHARDLINKS);
+      LOUD(fprintf(stderr, "opt: hard links count as matches (--hardlinks)\n");)
       break;
     case 'L':
-      SETFLAG(flags, F_HARDLINKFILES);
+      SETFLAG(a_flags, FA_HARDLINKFILES);
+      LOUD(fprintf(stderr, "opt: convert duplicates to hard links (--linkhard)\n");)
       break;
 #endif
     case 'i':
       SETFLAG(flags, F_REVERSESORT);
+      LOUD(fprintf(stderr, "opt: sort order reversal enabled (--reverse)\n");)
       break;
 #ifndef NO_USER_ORDER
     case 'I':
       SETFLAG(flags, F_ISOLATE);
+      LOUD(fprintf(stderr, "opt: intra-parameter match isolation enabled (--isolate)\n");)
       break;
     case 'O':
       SETFLAG(flags, F_USEPARAMORDER);
+      LOUD(fprintf(stderr, "opt: parameter order takes precedence (--paramorder)\n");)
       break;
 #else
     case 'I':
@@ -1886,26 +1900,31 @@ int main(int argc, char **argv)
       break;
 #endif
     case 'j':
-      SETFLAG(flags, F_PRINTJSON);
+      SETFLAG(a_flags, FA_PRINTJSON);
+      LOUD(fprintf(stderr, "opt: print output in JSON format (--printjson)\n");)
       break;
     case 'K':
       SETFLAG(flags, F_SKIPHASH);
       break;
     case 'm':
-      SETFLAG(flags, F_SUMMARIZEMATCHES);
+      SETFLAG(a_flags, FA_SUMMARIZEMATCHES);
+      LOUD(fprintf(stderr, "opt: print a summary of match stats (--summarize)\n");)
       break;
     case 'M':
-      SETFLAG(flags, F_SUMMARIZEMATCHES);
-      SETFLAG(flags, F_PRINTMATCHES);
+      SETFLAG(a_flags, FA_SUMMARIZEMATCHES);
+      SETFLAG(a_flags, FA_PRINTMATCHES);
+      LOUD(fprintf(stderr, "opt: print matches with a summary (--printwithsummary)\n");)
       break;
     case 'n':
       //fprintf(stderr, "note: -n/--noempty is the default behavior now and is deprecated.\n");
       break;
     case 'N':
       SETFLAG(flags, F_NOPROMPT);
+      LOUD(fprintf(stderr, "opt: delete files without prompting (--noprompt)\n");)
       break;
     case 'p':
       SETFLAG(flags, F_PERMISSIONS);
+      LOUD(fprintf(stderr, "opt: permissions must also match (--permissions)\n");)
       break;
     case 'P':
       if (strcmp(optarg, "partial") == 0) SETFLAG(p_flags, PF_PARTIAL);
@@ -1921,15 +1940,19 @@ int main(int argc, char **argv)
       break;
     case 'Q':
       SETFLAG(flags, F_QUICKCOMPARE);
+      LOUD(fprintf(stderr, "opt: byte-for-byte safety check disabled (--quick)\n");)
       break;
     case 'r':
       SETFLAG(flags, F_RECURSE);
+      LOUD(fprintf(stderr, "opt: global recursion enabled (--recurse)\n");)
       break;
     case 'R':
       SETFLAG(flags, F_RECURSEAFTER);
+      LOUD(fprintf(stderr, "opt: partial recursion enabled (--recurseafter)\n");)
       break;
     case 't':
       SETFLAG(flags, F_NOCHANGECHECK);
+      LOUD(fprintf(stderr, "opt: TOCTTOU safety check disabled (--nochangecheck)\n");)
       break;
     case 'T':
       if (partialonly_spec == 0)
@@ -1940,18 +1963,26 @@ int main(int argc, char **argv)
       }
       break;
     case 'u':
-      SETFLAG(flags, F_PRINTUNIQUE);
+      SETFLAG(a_flags, FA_PRINTUNIQUE);
+      LOUD(fprintf(stderr, "opt: print only non-matched (unique) files (--printunique)\n");)
+      break;
+    case 'U':
+      SETFLAG(flags, F_NOTRAVCHECK);
+      LOUD(fprintf(stderr, "opt: double-traversal safety check disabled (--notravcheck)\n");)
       break;
 #ifndef NO_SYMLINKS
     case 'l':
-      SETFLAG(flags, F_MAKESYMLINKS);
+      SETFLAG(a_flags, FA_MAKESYMLINKS);
+      LOUD(fprintf(stderr, "opt: convert duplicates to symbolic links (--linksoft)\n");)
       break;
     case 's':
       SETFLAG(flags, F_FOLLOWLINKS);
+      LOUD(fprintf(stderr, "opt: follow symbolic links enabled (--symlinks)\n");)
       break;
 #endif
     case 'S':
-      SETFLAG(flags, F_SHOWSIZE);
+      SETFLAG(a_flags, FA_SHOWSIZE);
+      LOUD(fprintf(stderr, "opt: show size of files enabled (--size)\n");)
       break;
     case 'x':
       fprintf(stderr, "-x/--xsize is deprecated; use -X size[+-=]:size[suffix] instead\n");
@@ -1973,14 +2004,17 @@ int main(int argc, char **argv)
       break;
     case 'z':
       SETFLAG(flags, F_INCLUDEEMPTY);
+      LOUD(fprintf(stderr, "opt: zero-length files count as matches (--zeromatch)\n");)
       break;
     case 'Z':
       SETFLAG(flags, F_SOFTABORT);
+      LOUD(fprintf(stderr, "opt: soft-abort mode enabled (--softabort)\n");)
       break;
     case '@':
 #ifdef LOUD_DEBUG
       SETFLAG(flags, F_DEBUG | F_LOUD | F_HIDEPROGRESS);
 #endif
+      LOUD(fprintf(stderr, "opt: loud debugging enabled, hope you can handle it (--loud)\n");)
       break;
     case 'v':
     case 'V':
@@ -2055,15 +2089,16 @@ int main(int argc, char **argv)
         fprintf(stderr, "Refusing to dedupe on a 2.x kernel; data loss could occur. Aborting.\n");
         exit(EXIT_FAILURE);
       }
-      SETFLAG(flags, F_DEDUPEFILES);
+      SETFLAG(a_flags, FA_DEDUPEFILES);
       /* btrfs will do the byte-for-byte check itself */
       SETFLAG(flags, F_QUICKCOMPARE);
       /* It is completely useless to dedupe zero-length extents */
       CLEARFLAG(flags, F_INCLUDEEMPTY);
 #else
-      fprintf(stderr, "This program was built without btrfs support\n");
+      fprintf(stderr, "This program was built without dedupe support\n");
       exit(EXIT_FAILURE);
 #endif
+      LOUD(fprintf(stderr, "opt: CoW/block-level deduplication enabled (--dedupe)\n");)
       break;
 
     default:
@@ -2098,32 +2133,32 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  if (ISFLAG(flags, F_SUMMARIZEMATCHES) && ISFLAG(flags, F_DELETEFILES)) {
+  if (ISFLAG(a_flags, FA_SUMMARIZEMATCHES) && ISFLAG(a_flags, FA_DELETEFILES)) {
     fprintf(stderr, "options --summarize and --delete are not compatible\n");
     string_malloc_destroy();
     exit(EXIT_FAILURE);
   }
 
 #ifdef ENABLE_DEDUPE
-  if (ISFLAG(flags, F_CONSIDERHARDLINKS) && ISFLAG(flags, F_DEDUPEFILES))
+  if (ISFLAG(flags, F_CONSIDERHARDLINKS) && ISFLAG(a_flags, FA_DEDUPEFILES))
     fprintf(stderr, "warning: option --dedupe overrides the behavior of --hardlinks\n");
 #endif
 
   /* If pm == 0, call printmatches() */
-  pm = !!ISFLAG(flags, F_SUMMARIZEMATCHES) +
-      !!ISFLAG(flags, F_DELETEFILES) +
-      !!ISFLAG(flags, F_HARDLINKFILES) +
-      !!ISFLAG(flags, F_MAKESYMLINKS) +
-      !!ISFLAG(flags, F_PRINTJSON) +
-      !!ISFLAG(flags, F_PRINTUNIQUE) +
-      !!ISFLAG(flags, F_DEDUPEFILES);
+  pm = !!ISFLAG(a_flags, FA_SUMMARIZEMATCHES) +
+      !!ISFLAG(a_flags, FA_DELETEFILES) +
+      !!ISFLAG(a_flags, FA_HARDLINKFILES) +
+      !!ISFLAG(a_flags, FA_MAKESYMLINKS) +
+      !!ISFLAG(a_flags, FA_PRINTJSON) +
+      !!ISFLAG(a_flags, FA_PRINTUNIQUE) +
+      !!ISFLAG(a_flags, FA_DEDUPEFILES);
 
   if (pm > 1) {
       fprintf(stderr, "Only one of --summarize, --printwithsummary, --delete, --linkhard,\n--linksoft, --json, or --dedupe may be used\n");
       string_malloc_destroy();
       exit(EXIT_FAILURE);
   }
-  if (pm == 0) SETFLAG(flags, F_PRINTMATCHES);
+  if (pm == 0) SETFLAG(a_flags, FA_PRINTMATCHES);
 
   if (ISFLAG(flags, F_RECURSEAFTER)) {
     firstrecurse = nonoptafter("--recurse:", argc, oldargv, argv);
@@ -2238,24 +2273,24 @@ skip_full_check:
 skip_file_scan:
   /* Stop catching CTRL+C */
   signal(SIGINT, SIG_DFL);
-  if (ISFLAG(flags, F_DELETEFILES)) {
+  if (ISFLAG(a_flags, FA_DELETEFILES)) {
     if (ISFLAG(flags, F_NOPROMPT)) deletefiles(files, 0, 0);
     else deletefiles(files, 1, stdin);
   }
 #ifndef NO_SYMLINKS
-  if (ISFLAG(flags, F_MAKESYMLINKS)) linkfiles(files, 0);
+  if (ISFLAG(a_flags, FA_MAKESYMLINKS)) linkfiles(files, 0);
 #endif
 #ifndef NO_HARDLINKS
-  if (ISFLAG(flags, F_HARDLINKFILES)) linkfiles(files, 1);
+  if (ISFLAG(a_flags, FA_HARDLINKFILES)) linkfiles(files, 1);
 #endif /* NO_HARDLINKS */
 #ifdef ENABLE_DEDUPE
-  if (ISFLAG(flags, F_DEDUPEFILES)) dedupefiles(files);
+  if (ISFLAG(a_flags, FA_DEDUPEFILES)) dedupefiles(files);
 #endif /* ENABLE_DEDUPE */
-  if (ISFLAG(flags, F_PRINTMATCHES)) printmatches(files);
-  if (ISFLAG(flags, F_PRINTUNIQUE)) printunique(files);
-  if (ISFLAG(flags, F_PRINTJSON)) printjson(files, argc, argv);
-  if (ISFLAG(flags, F_SUMMARIZEMATCHES)) {
-    if (ISFLAG(flags, F_PRINTMATCHES)) printf("\n\n");
+  if (ISFLAG(a_flags, FA_PRINTMATCHES)) printmatches(files);
+  if (ISFLAG(a_flags, FA_PRINTUNIQUE)) printunique(files);
+  if (ISFLAG(a_flags, FA_PRINTJSON)) printjson(files, argc, argv);
+  if (ISFLAG(a_flags, FA_SUMMARIZEMATCHES)) {
+    if (ISFLAG(a_flags, FA_PRINTMATCHES)) printf("\n\n");
     summarizematches(files);
   }
 
@@ -2283,7 +2318,7 @@ skip_file_scan:
     }
 #ifdef ON_WINDOWS
  #ifndef NO_HARDLINKS
-    if (ISFLAG(flags, F_HARDLINKFILES))
+    if (ISFLAG(a_flags, FA_HARDLINKFILES))
       fprintf(stderr, "Exclusions based on Windows hard link limit: %u\n", hll_exclude);
  #endif
 #endif
