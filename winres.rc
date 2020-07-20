@@ -3,8 +3,8 @@
 1 24 winres.manifest.xml
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,18,1,0
- PRODUCTVERSION 1,18,1,0
+ FILEVERSION 1,18,2,0
+ PRODUCTVERSION 1,18,2,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS 0x40004L
@@ -18,12 +18,12 @@ BEGIN
 		    VALUE "Comments", "(C) 2015-2020 Jody Bruchon and contributors, publised under The MIT License"
 		    VALUE "CompanyName", "Jody Bruchon"
 		    VALUE "FileDescription", "jdupes Duplicate File Finder Tool"
-		    VALUE "FileVersion", "1,18,1,0"
+		    VALUE "FileVersion", "1,18,2,0"
 		    VALUE "InternalName", "jdupes"
 		    VALUE "LegalCopyright", "(C) 2015-2020 Jody Bruchon and contributors"
 		    VALUE "OriginalFilename", "jdupes.exe"
 		    VALUE "ProductName", "jdupes"
-		    VALUE "ProductVersion", "1,18,1,0"
+		    VALUE "ProductVersion", "1,18,2,0"
 		END
     END
     BLOCK "VarFileInfo"

@@ -179,6 +179,7 @@ option is specified (delete, summarize, link, dedupe, etc.)
                         -T must be specified twice to work. Read the manual!
  -u --printunique       print only a list of unique (non-matched) files
  -U --notravcheck 	disable double-traversal safety check (BE VERY CAREFUL)
+                        This fixes a Google Drive File Stream recursion issue
  -v --version           display jdupes version and license information
  -x --xsize=SIZE        exclude files of size < SIZE bytes from consideration
     --xsize=+SIZE       '+' specified before SIZE, exclude size > SIZE

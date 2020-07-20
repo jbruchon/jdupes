@@ -1659,6 +1659,7 @@ static inline void help_text(void)
   printf("                  \t-T must be specified twice to work. Read the manual!\n");
   printf(" -u --printunique \tprint only a list of unique (non-matched) files\n");
   printf(" -U --notravcheck \tdisable double-traversal safety check (BE VERY CAREFUL)\n");
+  printf("                  \tThis fixes a Google Drive File Stream recursion issue\n");
   printf(" -v --version     \tdisplay jdupes version and license information\n");
   printf(" -x --xsize=SIZE  \texclude files of size < SIZE bytes from consideration\n");
   printf("    --xsize=+SIZE \t'+' specified before SIZE, exclude size > SIZE\n");
