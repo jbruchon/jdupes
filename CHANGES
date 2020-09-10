@@ -1,3 +1,9 @@
+jdupes 1.18.2
+
+- Add -U/--notravcheck to skip double-traversal safety (for Google Drive FS)
+- Unified all simple packaging options under a single 'make package' call
+- Reduce code size on macOS by dropping some Linux-specific code
+
 jdupes 1.18.1
 
 - Fix -X newer/older on Windows by writing a local strptime() substitute

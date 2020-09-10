@@ -192,9 +192,5 @@ distclean: clean
 
 chrootpackage:
 	+./chroot_build.sh
-linuxpackage:
-	+./generate_linux_packages.sh
-winpackage:
-	+./generate_windows_packages.sh
-macpackage:
-	+./generate_mac_packages.sh
+package:
+	+./generate_packages.sh
