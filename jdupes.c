@@ -1124,8 +1124,8 @@ error_overflow:
 
 /* Hash and compare two files at once. WARNING: file sizes MUST be equal
  * mode: 0 = full HaC, 1 = partial only, 2 = compare only */
-static int hash_and_compare(file_t * const restrict file1,
-                file_t * const restrict file2, const int mode)
+static int hash_and_compare(file_t * restrict file1,
+                file_t * restrict file2, const int mode)
 {
   off_t fsize;
   /* This is an array because we return a pointer to it */
