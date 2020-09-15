@@ -712,7 +712,7 @@ static int check_singlefile(file_t * const restrict newfile)
     for (struct exclude *excl = exclude_head; excl != NULL; excl = excl->next) {
       uint32_t sflag = excl->flags & XX_EXCL_SIZE;
       if (
-           ((sflag == X_SIZE_EQ) && (newfile->size != excl->size)) ||
+           ((sflag == X_SIZE_EQ) && (newfile->size == excl->size)) ||
            ((sflag == X_SIZE_LTEQ) && (newfile->size <= excl->size)) ||
            ((sflag == X_SIZE_GTEQ) && (newfile->size >= excl->size)) ||
            ((sflag == X_SIZE_GT) && (newfile->size > excl->size)) ||
