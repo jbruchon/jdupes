@@ -1,6 +1,6 @@
 jdupes 1.19.1
 
-- Fix missing space in ----> hard link inidcator
+- Fix missing space in ----> hard link indicator
 - Fix -P/--print and -p/--permissions options
 - Remove temporary warning when using -X
 
@@ -76,7 +76,7 @@ jdupes 1.13.3
 - Move BTRFS-specific dedupe interfaces to general Linux 4.5+ interfaces
 - Change BTRFS compilation flag name (see README)
 - Fix FS dedupe only working on the first 16 MiB of files
-- Add FS dedupe static header for when this header is mising
+- Add FS dedupe static header for when this header is missing
 - Add EXE version info for generated Windows executables
 - Correct several copyright dates and comments
 

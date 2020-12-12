@@ -651,7 +651,7 @@ extern int getdirstats(const char * const restrict name,
  * -2 on an absolute exclusion condition met
  *  2 on an absolute match condition met
  * -3 on exclusion due to isolation
- * -4 on exlusion due to same filesystem
+ * -4 on exclusion due to same filesystem
  * -5 on exclusion due to permissions */
 extern int check_conditions(const file_t * const restrict file1, const file_t * const restrict file2)
 {

@@ -42,7 +42,7 @@ MAN_DIR = $(MAN_BASE_DIR)/man1
 MAN_EXT = 1
 
 # Required External Tools
-INSTALL = install	# install : UCB/GNU Install compatiable
+INSTALL = install	# install : UCB/GNU Install compatible
 #INSTALL = ginstall
 RM      = rm -f
 RMDIR	= rmdir -p

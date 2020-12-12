@@ -297,7 +297,7 @@ of the change.
 On non-Windows platforms that support SIGUSR1, you can toggle the state of the
 `-Z` option by sending a SIGUSR1 to the program. This is handy if you want to
 abort jdupes, didn't specify `-Z`, and changed your mind and don't want to lose
-all the work that was done so far. Just do '`killall -USR1 jdupes`' and you wll
+all the work that was done so far. Just do '`killall -USR1 jdupes`' and you will
 be able to abort with `-Z`. This works in reverse: if you want to prevent a
 `-Z` from happening, a SIGUSR1 will toggle it back off. That's a lot less
 useful because you can just stop and kill the program to get the same effect,
