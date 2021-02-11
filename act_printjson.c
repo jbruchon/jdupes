@@ -90,7 +90,7 @@ static void json_escape(const char * restrict string, char * restrict const targ
 	curr = decode_utf8(&string);
 	if (curr == 0xffffffff) break;
 	if (likely(curr < 0xffff)) {
-	  if (likely(curr < 0x20) || curr > 0xff)
+	  if (likely(curr < 0x20) || curr > 0x7f)
 	    escape_uni16((uint16_t)curr, &escaped);
 	  else
 	    *escaped++ = (char)curr;
