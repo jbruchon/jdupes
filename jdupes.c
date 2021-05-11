@@ -1667,8 +1667,8 @@ static inline void help_text(void)
   printf(" -I --isolate     \tfiles in the same specified directory won't match\n");
 #endif
   printf(" -j --json        \tproduce JSON (machine-readable) output\n");
-/*  printf(" -K --skiphash    \tskip full file hashing (may be faster; 100%% safe)\n"); */
-  printf("                  \tWARNING: in development, not fully working yet!\n");
+/*  printf(" -K --skiphash    \tskip full file hashing (may be faster; 100%% safe)\n");
+    printf("                  \tWARNING: in development, not fully working yet!\n"); */
 #ifndef NO_SYMLINKS
   printf(" -l --linksoft    \tmake relative symlinks for duplicates w/o prompting\n");
 #endif
