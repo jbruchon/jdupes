@@ -57,16 +57,6 @@ all. To use it, type:
 
 ./compare_jdupes.sh [options]
 
-A stand-alone version of jdupes that consolidates most of the program's
-functionality into a single C file is included with this source code. Major
-differences include reduction or elimination of some text strings, using an
-embedded 32-bit jody_hash implementation instead of relying on xxHash64,
-removal of all DEBUG/LOUD and Windows support code, replacement of fancy
-numeric sorting with the faster but naive strcmp() sort method, and other
-minor adjustments and consolidations appropriate for single-file compilation.
-This version of the program is suitable for inclusion in "Swiss army knife"
-projects such as BusyBox and Toybox.
-
 There are some package generators included as make targets:
 
 chrootpackage  Uses chroots under /chroot to build Linux packages
