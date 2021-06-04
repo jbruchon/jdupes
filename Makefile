@@ -62,7 +62,7 @@ COMPILER_OPTIONS += -DSMA_MAX_FREE=11
 #####################################################################
 
 # Don't use unsupported compiler options on gcc 3/4 (OS X 10.5.8 Xcode)
-GCCVERSION = $(shell expr `gcc -v 2>&1 | grep 'gcc version ' | cut -d\  -f3 | cut -d. -f1` \>= 5)
+GCCVERSION = $(shell expr `LC_ALL=C gcc -v 2>&1 | grep 'gcc version ' | cut -d\  -f3 | cut -d. -f1` \>= 5)
 ifeq "$(GCCVERSION)" "1"
 	COMPILER_OPTIONS += -Wextra -Wstrict-overflow=5 -Winit-self
 endif
