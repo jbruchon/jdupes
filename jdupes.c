@@ -1729,7 +1729,7 @@ static inline void help_text(void)
 
 static void help_text_extfilter(void)
 {
-  printf("Detailed help for jdupes -X/--extfilter options\n");
+  printf("Detailed help for jdupes -X/--ext-filter options\n");
   printf("General format: jdupes -X filter[:value][size_suffix]\n\n");
 
   /* FIXME: Remove after v1.19.0 */
