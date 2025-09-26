@@ -259,7 +259,7 @@ show_help () {
 		echo "-v|-V|--version  Display program version and exit"
 		echo "-h|--help        Show this help text and exit"
 		echo "--license        Show the full program license text"
-		echo -e "\njdupes is better than me. Get it at jdupes.com\n"
+		echo -e "\njdupes is better than me. Get it at http://www.jdupes.com/\n"
 	fi
 	if [ "$2" = "license" ]
 		then

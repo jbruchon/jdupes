@@ -147,7 +147,7 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
     if (sf_warning == 0) {
       fprintf(stderr, "\nFile specs on command line disabled in this version for safety\n");
       fprintf(stderr, "This should be restored (and safe) in a future release\n");
-      fprintf(stderr, "More info at jdupes.com or email jody@jodybruchon.com\n");
+      fprintf(stderr, "More info at www.jdupes.com or email jody@jodybruchon.com\n");
       sf_warning = 1;
     }
     return; /* Remove when single file is restored */

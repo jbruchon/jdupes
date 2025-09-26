@@ -638,7 +638,7 @@ A future release will fix this safely.
 
 Website and contact information
 -------------------------------------------------------------------------------
-General program information, help, and tech info: https://www.jdupes.com/
+General program information, help, and tech info: http://www.jdupes.com/
 
 Development, source code, and releases: https://codeberg.org/jbruchon/jdupes
 
