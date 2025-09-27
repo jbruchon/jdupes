@@ -88,6 +88,7 @@ EXTENRAL_HASH_LIB      Force hash code to be linked in externally (no build)
 FORCE_JC_DLL           Windows only: force linking to nearby libjodycode.dll
 IGNORE_NEARBY_JC       Do NOT use libjodycode at ../libjodycode if it exists
 GC_SECTIONS            Use gcc/ld section garbage collection to reduce size
+USE_LTO                Link-time optimization (requires compiler LTO support)
 
 EXTERNAL_HASH_LIB will build jdupes with the interface code for the chosen hash
 type (xxhash vs jody_hash) but will suppress building the actual code. This is

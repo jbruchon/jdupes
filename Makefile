@@ -42,6 +42,11 @@ COMPILER_OPTIONS += -Wshadow -Wfloat-equal -Waggregate-return -Wcast-qual -Wswit
 COMPILER_OPTIONS += -std=gnu11 -D_FILE_OFFSET_BITS=64 -fstrict-aliasing -pipe
 COMPILER_OPTIONS += -DNO_ATIME
 
+ifdef USE_LTO
+ COMPILER_OPTIONS += -flto
+ LINK_OPTIONS += -flto
+endif
+
 # Remove unused code if requested
 ifdef GC_SECTIONS
  COMPILER_OPTIONS += -fdata-sections -ffunction-sections
