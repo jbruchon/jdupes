@@ -19,4 +19,4 @@ echo "$VER  =  $PRODVER ($XVER)"
 # Actually change the manifest version information
 sed -i 's/\([A-Z]*\)VERSION [0-9],.*/\1VERSION '"$PRODVER/"';s/"\([A-Za-z]*\)Version", "[0-9],.*"/"\1Version", '"\"$PRODVER\"/" "$WINRES"
 sed -i 's/\([A-Z]*\)VERSION [0-9],.*/\1VERSION '"$PRODVER/"';s/"\([A-Za-z]*\)Version", "[0-9],.*"/"\1Version", '"\"$PRODVER\"/" "$WINRES_XP"
-sed -i 's/assemblyIdentity type="win32" name="jdupes" version="[^"]*/assemblyIdentity type="win32" name="jdupes" version="'$XVER/ "$WINRES_MAN"
+sed -i 's/\(assemblyIdentity .*\) version="[^"]*/\1 version="'$XVER/ "$WINRES_MAN"
