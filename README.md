@@ -361,19 +361,38 @@ file paths, hashes, and other metadata that enables jdupes to "remember" file
 data across runs. Specifying a period '.' as the database file name will use a
 name of "jdupes_hashdb.txt" instead; this alias makes it easy to use the hash
 database feature without typing a descriptive name each time. THIS FEATURE IS
-CURRENTLY UNDER DEVELOPMENT AND HAS MANY QUIRKS. USE IT AT YOUR OWN RISK. In
-particular, one of the biggest problems with this feature is that it stores
-every path exactly as specified on the command line; if any paths are passed
-into jdupes on a subsequent run with a different prefix then they will not be
-recognized and they will be treated as totally different files. For example,
-running `jdupes -y . foo/` is not the same as `jdupes -y . ./foo` nor the same
-as (from a sibling directory) `jdupes -y ../foo`. You must run jdupes from the
-same working directory and with the same path specifications to take advantage
+CURRENTLY UNDER DEVELOPMENT! USE IT AT YOUR OWN RISK. You must run jdupes from
+the same working directory with the same path specifications to take advantage
 of the hash database feature. When used correctly, a fully populated hash
 database can reduce subsequent runs with hundreds of thousands of files that
 normally take a very long time to run down to the directory scanning time plus
 a couple of seconds. If the directory data is already in the OS disk cache,
 this can make subsequent runs with over 100K files finish in under one second.
+
+HASH DATABASES USE RELATIVE PATHS AND ARE NOT PORTABLE! It is strongly advised
+to stick to using the `-y .` option for storing the database in the current
+working directory and leaving it there. Support for "picking up" localized
+hash databases is planned but not currently implemented. A particular misuse
+of this feature is specifying a "unified" database in a home directory; this
+will not work as you might expect. For example, if you have a directory named
+homedir/foo/bar and you run jdupes within it like this: `jdupes -y ~/hashdb .`
+and then `cd ~` and run `jdupes -y ~/hashdb foo/bar` then none of the cached
+hashes for foo/bar will be picked up from the database and performance will be
+unchanged from not using a database at all, plus duplicate entries will be
+created as needed based on the second run's scanned files. To properly use a
+unified hash database, you must run jdupes with the same "root" specified for
+every single directory passed to it. in the previous failure example, we can
+use `cd ~; jdupes -y . foo/bar baz/quux` or (outside the home directory)
+`jdupes -y ~/jdupes_hashdb.txt ~/foo/bar ~/baz/quux` to create a more unified
+hash database. THE BIG CAVEAT is that the hash database path processor is too
+dumb to see that both of these are the same since ~ expands to an absolute
+path like `/home/homedir` but relative paths inside `/home/homedir` are not
+technically the same text. Likewise, relative path components like `../` are
+not expanded. It is also unlikely that a database made on Linux will work if
+jdupes is run on Windows and pointed at the same database, though this has yet
+to actually be tested (in particular, Windows uses backslashes in paths while
+other OSes don't, and backslashes are valid in file names on some systems, so
+there is plenty of room for bad behavior to occur when mixing databases).
 
 The `-Y`/`--hash-db-populate` option will forcibly pre-populate the specified
 hash database with partial and full file hashes for the specified files. This
