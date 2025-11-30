@@ -36,8 +36,8 @@
 #ifdef ENABLE_CLONEFILE_LINK
 static void clonefile_error(const char * const restrict func, const char * const restrict name)
 {
-  fprintf(stderr, "warning: %s failed for destination file, reverting:\n-##-> ", func);
-  jc_fwprint(stderr,name, 1);
+  fprintf(stderr, "error: %s failed for destination file, reverting:\n-##-> ", func);
+  jc_fwprint(stderr, name, 1);
   exit_status = EXIT_FAILURE;
   return;
 }
@@ -56,7 +56,7 @@ static void linkfiles_nosupport(const char * const restrict call, const char * c
 
 static void revert_failed(const char * const restrict orig, const char * const restrict current)
 {
-  fprintf(stderr, "\nwarning: couldn't revert the file to its original name\n");
+  fprintf(stderr, "\nerror: couldn't revert the file to its original name\n");
   fprintf(stderr, "original: "); jc_fwprint(stderr, orig, 1);
   fprintf(stderr, "current:  "); jc_fwprint(stderr, current, 1);
   exit_status = EXIT_FAILURE;
@@ -159,7 +159,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
       if (linktype == 2) {
 #ifdef ENABLE_CLONEFILE_LINK
         if (jc_stat(srcfile->d_name, &s) != 0) {
-          fprintf(stderr, "warning: stat() on source file failed, skipping:\n[SRC] ");
+          fprintf(stderr, "error: stat() on source file failed, skipping:\n[SRC] ");
           jc_fwprint(stderr, srcfile->d_name, 1);
           exit_status = EXIT_FAILURE;
           goto linkfile_loop;
@@ -177,7 +177,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
         if (linktype == 1 || linktype == 2) {
           /* Can't hard link files on different devices */
           if (srcfile->device != dupelist[x]->device) {
-            fprintf(stderr, "warning: hard link target on different device, not linking:\n-//-> ");
+            fprintf(stderr, "error: hard link target on different device, not linking:\n-//-> ");
             jc_fwprint(stderr, dupelist[x]->d_name, 1);
             exit_status = EXIT_FAILURE;
             continue;
@@ -210,7 +210,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
 #endif
         (jc_access(dupelist[x]->d_name, JC_W_OK) != 0))
         {
-          fprintf(stderr, "warning: link target is a read-only file, not linking:\n-//-> ");
+          fprintf(stderr, "error: link target is a read-only file, not linking:\n-//-> ");
           jc_fwprint(stderr, dupelist[x]->d_name, 1);
           exit_status = EXIT_FAILURE;
           continue;
@@ -219,7 +219,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
         /* Safe linking: don't actually delete until the link succeeds */
         i = file_has_changed(srcfile);
         if (i) {
-          fprintf(stderr, "warning: source file modified since scanned; changing source file:\n[SRC] ");
+          fprintf(stderr, "error: source file modified since scanned; changing source file:\n[SRC] ");
           jc_fwprint(stderr, dupelist[x]->d_name, 1);
           LOUD(fprintf(stderr, "file_has_changed: %d\n", i);)
           srcfile = dupelist[x];
@@ -227,7 +227,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
           continue;
         }
         if (file_has_changed(dupelist[x])) {
-          fprintf(stderr, "warning: target file modified since scanned, not linking:\n-//-> ");
+          fprintf(stderr, "error: target file modified since scanned, not linking:\n-//-> ");
           jc_fwprint(stderr, dupelist[x]->d_name, 1);
           exit_status = EXIT_FAILURE;
           continue;
@@ -236,21 +236,21 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
         /* For Windows, the hard link count maximum is 1023 (+1); work around
          * by skipping linking or changing the link source file as needed */
         if (jc_stat(srcfile->d_name, &s) != 0) {
-          fprintf(stderr, "warning: win_stat() on source file failed, changing source file:\n[SRC] ");
+          fprintf(stderr, "error: win_stat() on source file failed, changing source file:\n[SRC] ");
           jc_fwprint(stderr, dupelist[x]->d_name, 1);
           srcfile = dupelist[x];
           exit_status = EXIT_FAILURE;
           continue;
         }
         if (s.st_nlink >= 1024) {
-          fprintf(stderr, "warning: maximum source link count reached, changing source file:\n[SRC] ");
+          fprintf(stderr, "error: maximum source link count reached, changing source file:\n[SRC] ");
           srcfile = dupelist[x];
           exit_status = EXIT_FAILURE;
           continue;
         }
         if (jc_stat(dupelist[x]->d_name, &s) != 0) continue;
         if (s.st_nlink >= 1024) {
-          fprintf(stderr, "warning: maximum destination link count reached, skipping:\n-//-> ");
+          fprintf(stderr, "error: maximum destination link count reached, skipping:\n-//-> ");
           jc_fwprint(stderr, dupelist[x]->d_name, 1);
           exit_status = EXIT_FAILURE;
           continue;
@@ -259,7 +259,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
 #ifdef ENABLE_CLONEFILE_LINK
         if (linktype == 2) {
           if (jc_stat(dupelist[x]->d_name, &s) != 0) {
-            fprintf(stderr, "warning: stat() on destination file failed, skipping:\n-##-> ");
+            fprintf(stderr, "error: stat() on destination file failed, skipping:\n-##-> ");
             jc_fwprint(stderr, dupelist[x]->d_name, 1);
             exit_status = EXIT_FAILURE;
             continue;
@@ -286,7 +286,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
         /* Rename the destination file to the temporary name */
         i = jc_rename(dupelist[x]->d_name, tempname);
         if (i != 0) {
-          fprintf(stderr, "warning: cannot move link target to a temporary name, not linking:\n-//-> ");
+          fprintf(stderr, "error: cannot move link target to a temporary name, not linking:\n-//-> ");
           jc_fwprint(stderr, dupelist[x]->d_name, 1);
           exit_status = EXIT_FAILURE;
           /* Just in case the rename succeeded yet still returned an error, roll back the rename */
@@ -322,9 +322,11 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
           i = jc_make_relative_link_name(srcfile->d_name, dupelist[x]->d_name, rel_path);
           LOUD(fprintf(stderr, "symlink MRLN: %s to %s = %s\n", srcfile->d_name, dupelist[x]->d_name, rel_path));
           if (i < 0) {
-            fprintf(stderr, "warning: make_relative_link_name() failed (%d)\n", i);
+            fprintf(stderr, "error: make_relative_link_name() failed (%d)\n", i);
+	    exit_status = EXIT_FAILURE;
           } else if (i == 1) {
-            fprintf(stderr, "warning: files to be linked have the same canonical path; not linking\n");
+            fprintf(stderr, "error: files to be linked have the same canonical path; not linking\n");
+	    exit_status = EXIT_FAILURE;
           } else if (symlink(rel_path, dupelist[x]->d_name) == 0) success = 1;
         }
 #endif /* NO_SYMLINKS */
@@ -373,7 +375,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
           if (!ISFLAG(flags, F_HIDEPROGRESS)) {
             printf("-//-> "); jc_fwprint(stdout, dupelist[x]->d_name, 1);
           }
-          fprintf(stderr, "warning: unable to link '"); jc_fwprint(stderr, dupelist[x]->d_name, 0);
+          fprintf(stderr, "error: unable to link '"); jc_fwprint(stderr, dupelist[x]->d_name, 0);
           fprintf(stderr, "' -> '"); jc_fwprint(stderr, srcfile->d_name, 0);
           fprintf(stderr, "': %s\n", strerror(errno));
           i = jc_rename(tempname, dupelist[x]->d_name);
@@ -386,12 +388,12 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
         if (i != 0) {
           /* If the temp file can't be deleted, there may be a permissions problem
            * so reverse the process and warn the user */
-          fprintf(stderr, "\nwarning: can't delete temp file, reverting: ");
+          fprintf(stderr, "\nerror: can't delete temp file, reverting: ");
           jc_fwprint(stderr, tempname, 1);
           exit_status = EXIT_FAILURE;
           i = jc_remove(dupelist[x]->d_name);
           /* This last error really should not happen, but we can't assume it won't */
-          if (i != 0) fprintf(stderr, "\nwarning: couldn't remove link to restore original file\n");
+          if (i != 0) fprintf(stderr, "\nerror: couldn't remove link to restore original file\n");
           else {
             i = jc_rename(tempname, dupelist[x]->d_name);
             if (i != 0) revert_failed(dupelist[x]->d_name, tempname);
