@@ -363,6 +363,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
                 dupelist[x]->flags |= FF_HASHDB_DIRTY | (srcfile->flags & (FF_HASH_PARTIAL | FF_HASH_FULL));
                 add_hashdb_entry(NULL, 0, dupelist[x], 1);
               default:
+		break;
             }
           }
 #endif
