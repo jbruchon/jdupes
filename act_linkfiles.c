@@ -270,7 +270,11 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
            * the compression flag on dstfile in favor of the one from srcfile */
           dupfile_preserved_flags = s.st_flags & ~(unsigned int)UF_COMPRESSED;
           dupfile_original_flags = s.st_flags;
+#ifndef NO_ATIME
           dupfile_original_tval[0].tv_sec = s.st_atime;
+#else
+          dupfile_original_tval[0].tv_sec = s.st_mtime;
+#endif
           dupfile_original_tval[1].tv_sec = s.st_mtime;
           dupfile_original_tval[0].tv_usec = 0;
           dupfile_original_tval[1].tv_usec = 0;
