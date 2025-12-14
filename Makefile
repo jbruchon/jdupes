@@ -161,6 +161,10 @@ endif
 
 # Don't do clonefile on Mac OS X < 10.13 (High Sierra)
 ifeq ($(UNAME_S), Darwin)
+ ifndef NO_MACOS
+  ON_MACOS = 1
+  COMPILER_OPTIONS += -DON_MACOS=1
+ endif
  DARWINVER := $(shell expr `uname -r | cut -d. -f1` \< 17)
  ifeq "$(DARWINVER)" "1"
   COMPILER_OPTIONS += -DNO_CLONEFILE=1
