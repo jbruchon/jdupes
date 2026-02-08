@@ -25,7 +25,7 @@ typedef struct _hashdb {
   uint_fast8_t hashcount;
 } hashdb_t;
 
-extern int save_hash_database(const char * const restrict dbname, const int destroy);
+extern int save_hash_database(const char * const restrict dbname, uint64_t * const restrict entries, const int destroy);
 extern hashdb_t *add_hashdb_entry(char *in_path, const int in_pathlen, const file_t *check, int update);
 extern int64_t load_hash_database(const char * const restrict dbname);
 extern int read_hashdb_entry(file_t *file);

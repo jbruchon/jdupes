@@ -65,8 +65,10 @@ static hashdb_t *alloc_hashdb_node(const int pathlen)
 }
 
 
-/* destroy = 1 will free() all nodes while saving */
-int save_hash_database(const char * const restrict dbname, const int destroy)
+/* destroy = 1 will free() all nodes while saving
+ * entries will be filled with the number of entries written to the database
+ * returns 0 on success, 1 on success but no writes, negative values on error */
+int save_hash_database(const char * const restrict dbname, uint64_t * const restrict entries, const int destroy)
 {
   FILE *db = NULL;
   uint64_t cnt = 0;
@@ -74,8 +76,8 @@ int save_hash_database(const char * const restrict dbname, const int destroy)
 
   if (dbname == NULL) goto error_hashdb_null;
   LOUD(fprintf(stderr, "save_hash_database('%s') destroy = %d, dirty = %d\n", dbname, destroy, hashdb_dirty);)
-  /* Don't save the hash database if it wasn't changed */
-  if (hashdb_dirty == 0 && destroy == 0) return 0;
+  /* Don't save the hash database if it wasn't changed, and let the caller know */
+  if (hashdb_dirty == 0 && destroy == 0) { *entries = 0; return 1; }
   if (hashdb_dirty == 1) {
     dbtemp = malloc(strlen(dbname) + 5);
     if (dbtemp == NULL) goto error_hashdb_alloc;
@@ -98,7 +100,9 @@ int save_hash_database(const char * const restrict dbname, const int destroy)
     hashdb_dirty = 0;
   }
 
-  return cnt;
+  *entries = cnt;
+  if (cnt == 0) return 1;
+  return 0;
 
 error_hashdb_null:
   fprintf(stderr, "error: internal failure: NULL pointer for hashdb\n");
@@ -451,7 +455,7 @@ int64_t load_hash_database(const char * const restrict dbname)
   return linenum - 1;
 
 warn_hashdb_open:
-  fprintf(stderr, "Creating a new hash database '%s'\n", dbname);
+  fprintf(stderr, "notice: new hash database '%s' will be created if any hash work is performed\n", dbname);
   new_hashdb = 1;
   return 0;
 error_hashdb_read:

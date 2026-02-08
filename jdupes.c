@@ -181,6 +181,7 @@ int main(int argc, char **argv)
   int hdblen;
   int64_t hdbsize;
   uint64_t hdbout;
+  int hdbret;
 #endif
 
 #ifndef NO_GETOPT_LONG
@@ -854,10 +855,20 @@ skip_file_scan:
 #ifndef NO_HASHDB
 skip_all_actions:
   if (ISFLAG(flags, F_HASHDB)) {
-    hdbout = save_hash_database(hashdb_name, 1);
+    hdbret = save_hash_database(hashdb_name, &hdbout, 1);
     if (!ISFLAG(flags, F_HIDEPROGRESS)) {
-      if (hdbout > 0) fprintf(stderr, "Wrote %" PRIu64 " entries to the hash database\n", hdbout);
-      else fprintf(stderr, "Hash database is OK (no changes)\n");
+      switch (hdbret) {
+        case 0:
+          fprintf(stderr, "hashdb: wrote %" PRIu64 " entries to the hash database\n", hdbout);
+          break;
+        case 1:
+          if (hdbsize == 0) fprintf(stderr, "hashdb: no hashing needed; not creating an empty hash database\n");
+          else fprintf(stderr, "hashdb: no data changed; the existing hash database is OK");
+          break;
+       default:
+          fprintf(stderr, "hashdb: error %d while saving the hash database\n", hdbret);
+          break;
+      }
     }
   }
   if (hashdb_name != NULL) free(hashdb_name);
