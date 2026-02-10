@@ -113,6 +113,7 @@ void printjson(file_t * restrict files, const int argc, char **argv)
 
   /* Output information about the jdupes command environment */
   printf("{\n  \"jdupesVersion\": \"%s\",\n  \"jdupesVersionDate\": \"%s\",\n", VER, VERDATE);
+  printf("  \"libjodycodeVersion\": \"%s\",\n  \"libjodycodeVersionDate\": \"%s\",\n", jc_version, jc_verdate);
 
   printf("  \"commandLine\": \"");
   while (arg < argc) {
@@ -131,6 +132,7 @@ void printjson(file_t * restrict files, const int argc, char **argv)
 #else
   printf("unavailable\",\n");
 #endif
+  printf("  \"exitStatus\": %d,\n", exit_status);
 
   printf("  \"matchSets\": [\n");
   while (files != NULL) {
