@@ -141,7 +141,6 @@ char tempname[JC_PATHBUF_SIZE * 2];
 const char *s_interrupt = "\nStopping file scan due to user abort\n";
 const char *s_no_dupes = "No duplicates found.\n";
 const char *s_help = "help";
-const char *s_chunksize_help = "         Run 'jdupes -C help' for info on the new size specifications.\n\n";
 
 /* Exit status; use exit() codes for setting this */
 int exit_status = EXIT_SUCCESS;
@@ -340,13 +339,12 @@ int main(int argc, char **argv)
       manual_chunk_size = strtol(optarg, NULL, 10);
       if (errno != 0 || manual_chunk_size < 0 || manual_chunk_size > MAX_CHUNK_OPT_SIZE) {
         fprintf(stderr, "error: -C/--chunk-size '%s' invalid or out of range\n", optarg);
-        fprintf(stderr, "%s", s_chunksize_help);
+        fprintf(stderr, "Run 'jdupes -C help' for info on the new size specifications.\n");
+        fprintf(stderr, "\nnotice: The -C/--chunk-size parameter has changed!\n");
         exit(EXIT_FAILURE);
       }
-      fprintf(stderr, "\nWARNING: The -C/--chunk-size parameter has changed!\n");
-      fprintf(stderr, "%s", s_chunksize_help);
       auto_chunk_size = chunk_opt_size[manual_chunk_size];
-      fprintf(stderr, "note: the user-selected I/O chunk size is ");
+      fprintf(stderr, "notice: the user-selected I/O chunk size is ");
       if (auto_chunk_size <= 524288) fprintf(stderr, "%lu KiB\n", (long unsigned int)(auto_chunk_size / 1024));
       if (auto_chunk_size > 524288) fprintf(stderr, "%lu MiB\n", (long unsigned int)(auto_chunk_size / 1048576));
       break;
