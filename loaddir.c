@@ -157,13 +157,12 @@ file_t *grokfile(const char * const restrict name, file_t * restrict * const res
 #endif
 
 /* Load a directory's contents into the file tree, recursing as needed */
-void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurse)
+void loaddir(char *startdir, file_t * restrict * const restrict filelistp, int recurse)
 {
   file_t *newfile;
-  file_t *rootfile;
   struct dq_entry dq;
   struct JC_DIRENT *dirinfo;
-  size_t dirlen, dirpos;
+  size_t dirpos;
 //  int i, single = 0, dotdir = 0;
   int i, dotdir = 0;
   jdupes_ino_t inode;
@@ -172,22 +171,22 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
   JC_DIR *cd;
   static int sf_warning = 0; /* single file warning should only appear once */
 
-  if (unlikely(dir == NULL || filelistp == NULL || *dir == '\0')) jc_nullptr("loaddir()");
-  LOUD(fprintf(stderr, "loaddir: scanning '%s' (order %d, recurse %d)\n", dir, user_item_count, recurse));
+  if (unlikely(startdir == NULL || filelistp == NULL || *startdir == '\0')) jc_nullptr("loaddir()");
+  LOUD(fprintf(stderr, "loaddir: scanning '%s' (order %d, recurse %d)\n", startdir, user_item_count, recurse));
 
   if (unlikely(interrupt != 0)) return;
 
-  dir = remove_leading_dotslashes(dir);
-  if (*dir == '.' && *(dir + 1) == '\0') dotdir = 1;
+  startdir = remove_leading_dotslashes(startdir);
+  if (*startdir == '.' && *(startdir + 1) == '\0') dotdir = 1;
   /* Convert forward slashes to backslashes if on Windows */
-  jc_slash_convert(dir);
+  jc_slash_convert(startdir);
 
   /* Push the first dir on the dir queue so we can use the loop for it */
-  i = strlen(dir);
-  rootfile = init_newfile(i, filelistp);  /* filelistp is just to pass a null pointer check */
-  memcpy(rootfile->d_name, dir, i);
-  if (push_dirqueue(rootfile, recurse) != 0) goto error_push_dq;
-  free(rootfile);
+  i = strlen(startdir);
+  newfile = init_newfile(i, filelistp);  /* filelistp is just to pass a null pointer check */
+  memcpy(newfile->d_name, startdir, i);
+  if (push_dirqueue(newfile, recurse) != 0) goto error_push_dq;
+  free(newfile);
 
 /* I AM NOT INDENTING FOR THIS! XXX */
 while (pop_dirqueue(&dq) == 0) {
@@ -233,8 +232,11 @@ fprintf(stderr, "loaddir: processing '%s'\n", dq.d_name);
   item_progress++;
 
   cd = jc_opendir(dq.d_name);
-  if (unlikely(!cd)) goto error_cd;
-  dirlen = dq.d_name_len;
+  if (unlikely(!cd)) {
+    fprintf(stderr, "\ncould not chdir to "); jc_fwprint(stderr, dq.d_name, 1);
+    exit_status = EXIT_FAILURE;
+    continue;
+  }
 
   while ((dirinfo = jc_readdir(cd)) != NULL) {
     char * restrict tp = tempname;
@@ -255,7 +257,7 @@ fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
     dirpos = 0;
     /* Avoid prefixing '.\' if the dir spec is effectively '.' */
     if (likely(dotdir == 0)) {
-      dirpos = dirlen;
+      dirpos = dq.d_name_len;
       memcpy(tp, dq.d_name, dirpos + 1);
       if (dirpos != 0 && tp[dirpos - 1] != dir_sep) {
         tp[dirpos] = dir_sep;
@@ -279,7 +281,7 @@ fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
 
     /* Single-file [l]stat() and exclusion condition check */
     if (check_singlefile(newfile) != 0) {
-      LOUD(fprintf(stderr, "loaddir: check_singlefile rejected file\n"));
+      LOUD(fprintf(stderr, "loaddir: check_singlefile rejected file: '%s'\n", newfile->d_name));
       free(newfile->d_name);
       free(newfile);
       continue;
@@ -327,6 +329,7 @@ fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
 #ifndef NO_HASHDB
         if (ISFLAG(flags, F_HASHDB)) read_hashdb_entry(newfile);
 #endif
+fprintf(stderr, "loaddir: adding file: '%s'\n", newfile->d_name);
         *filelistp = newfile;
         filecount++;
         progress++;
@@ -350,11 +353,7 @@ fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
   return;
 
 error_stat_dir:
-  fprintf(stderr, "\ncould not stat dir "); jc_fwprint(stderr, dir, 1);
-  exit_status = EXIT_FAILURE;
-  return;
-error_cd:
-  fprintf(stderr, "\ncould not chdir to "); jc_fwprint(stderr, dir, 1);
+  fprintf(stderr, "\ncould not stat dir "); jc_fwprint(stderr, dq.d_name, 1);
   exit_status = EXIT_FAILURE;
   return;
 error_push_dq:
