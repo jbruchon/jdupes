@@ -30,6 +30,22 @@
  const char dir_sep = '/';
 #endif /* _WIN32 || __MINGW32__ */
 
+/* Directory queue to avoid immediate recursion */
+struct dq_entry {
+  char *d_name;
+  int d_name_len;
+  int recurse;
+};
+
+struct dq {
+  struct dq *next;
+  struct dq *prev;
+  struct dq_entry entry;
+};
+
+static struct dq *dq_head = NULL;
+static struct dq *dq_tail = NULL;
+
 
 char *remove_leading_dotslashes(char *path)
 {
@@ -75,6 +91,45 @@ static file_t *init_newfile(const size_t pathlen, file_t * restrict * const rest
 }
 
 
+/* Queue for items for sequential directory completion; avoid recursion */
+static int push_dirqueue(file_t *newfile, int recurse)
+{
+  struct dq *dq_item = calloc(1, sizeof(struct dq));
+
+  if (dq_item == NULL) return -1;
+
+  dq_item->entry.d_name = newfile->d_name;
+  dq_item->entry.d_name_len = newfile->d_name_len;
+  dq_item->entry.recurse = recurse;
+  dq_item->next = NULL;
+  dq_item->prev = dq_tail;  /* NULL if first item */
+
+  /* Link to end of list - first time, set up queue head/tail */
+  if (unlikely(dq_head == NULL)) dq_head = dq_item;
+  else dq_tail->next = dq_item;
+  dq_tail = dq_item;
+
+  return 0;
+}
+
+
+static int pop_dirqueue(struct dq_entry *found)
+{
+  struct dq *dq_item = dq_tail;
+
+  if (dq_item == NULL) return -1;
+
+  /* If list is emptied, nuke it, else snip the tail */
+  if (dq_item->prev != NULL) dq_item->prev->next = NULL;
+  if (dq_item == dq_head) dq_head = NULL;
+  dq_tail = dq_item->prev;
+
+  memcpy(found, &(dq_item->entry), sizeof(struct dq_entry));
+  free(dq_item);
+  return 0;
+}
+
+
 /* This is disabled until a check is in place to make it safe */
 #if 0
 /* Add a single file to the file tree */
@@ -104,7 +159,9 @@ file_t *grokfile(const char * const restrict name, file_t * restrict * const res
 /* Load a directory's contents into the file tree, recursing as needed */
 void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurse)
 {
-  file_t * restrict newfile;
+  file_t *newfile;
+  file_t *rootfile;
+  struct dq_entry dq;
   struct JC_DIRENT *dirinfo;
   size_t dirlen, dirpos;
 //  int i, single = 0, dotdir = 0;
@@ -125,8 +182,18 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
   /* Convert forward slashes to backslashes if on Windows */
   jc_slash_convert(dir);
 
+  /* Push the first dir on the dir queue so we can use the loop for it */
+  i = strlen(dir);
+  rootfile = init_newfile(i, filelistp);  /* filelistp is just to pass a null pointer check */
+  memcpy(rootfile->d_name, dir, i);
+  if (push_dirqueue(rootfile, recurse) != 0) goto error_push_dq;
+  free(rootfile);
+
+/* I AM NOT INDENTING FOR THIS! XXX */
+while (pop_dirqueue(&dq) == 0) {
+
   /* Get directory stats (or file stats if it's a file) */
-  i = getdirstats(dir, &inode, &device, &mode);
+  i = getdirstats(dq.d_name, &inode, &device, &mode);
   if (unlikely(i < 0)) goto error_stat_dir;
 
   /* if dir is actually a file, just add it to the file tree */
@@ -164,9 +231,9 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
 
   item_progress++;
 
-  cd = jc_opendir(dir);
+  cd = jc_opendir(dq.d_name);
   if (unlikely(!cd)) goto error_cd;
-  dirlen = strlen(dir);
+  dirlen = dq.d_name_len;
 
   while ((dirinfo = jc_readdir(cd)) != NULL) {
     char * restrict tp = tempname;
@@ -187,7 +254,7 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
     /* Avoid prefixing '.\' if the dir spec is effectively '.' */
     if (likely(dotdir == 0)) {
       dirpos = dirlen;
-      memcpy(tp, dir, dirpos + 1);
+      memcpy(tp, dq.d_name, dirpos + 1);
       if (dirpos != 0 && tp[dirpos - 1] != dir_sep) {
         tp[dirpos] = dir_sep;
         dirpos++;
@@ -231,16 +298,18 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
 #ifndef NO_SYMLINKS
         else if (ISFLAG(flags, F_FOLLOWLINKS) || !ISFLAG(newfile->flags, FF_IS_SYMLINK)) {
           LOUD(fprintf(stderr, "loaddir: directory(symlink): recursing (-r/-R)\n"));
-          loaddir(newfile->d_name, filelistp, recurse);
+          if (push_dirqueue(newfile, recurse) != 0) goto error_push_dq;
         }
 #else
         else {
           LOUD(fprintf(stderr, "loaddir: directory: recursing (-r/-R)\n"));
-          loaddir(newfile->d_name, filelistp, recurse);
+          if (push_dirqueue(newfile, recurse) != 0) goto error_push_dq;
         }
 #endif /* NO_SYMLINKS */
-      } else { LOUD(fprintf(stderr, "loaddir: directory: not recursing\n")); }
-      free(newfile->d_name);
+      } else {
+        LOUD(fprintf(stderr, "loaddir: directory: not recursing\n"));
+        free(newfile->d_name);
+      }
       free(newfile);
       if (unlikely(interrupt != 0)) return;
       continue;
@@ -272,6 +341,9 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
   }
 
   jc_closedir(cd);
+  free(dq.d_name);
+/* end of queue loop */
+}
 
   return;
 
@@ -281,6 +353,10 @@ error_stat_dir:
   return;
 error_cd:
   fprintf(stderr, "\ncould not chdir to "); jc_fwprint(stderr, dir, 1);
+  exit_status = EXIT_FAILURE;
+  return;
+error_push_dq:
+  fprintf(stderr, "\nfailed to allocate memory for the directory queue\n");
   exit_status = EXIT_FAILURE;
   return;
 error_overflow:
