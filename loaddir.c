@@ -193,6 +193,7 @@ void loaddir(char *dir, file_t * restrict * const restrict filelistp, int recurs
 while (pop_dirqueue(&dq) == 0) {
 
   /* Get directory stats (or file stats if it's a file) */
+fprintf(stderr, "loaddir: processing '%s'\n", dq.d_name);
   i = getdirstats(dq.d_name, &inode, &device, &mode);
   if (unlikely(i < 0)) goto error_stat_dir;
 
@@ -224,7 +225,7 @@ while (pop_dirqueue(&dq) == 0) {
 #ifndef NO_TRAVCHECK
   if (likely(!ISFLAG(flags, F_NOTRAVCHECK))) {
     i = traverse_check(device, inode);
-    if (unlikely(i == 1)) return;
+    if (unlikely(i == 1)) continue;
     if (unlikely(i == 2)) goto error_stat_dir;
   }
 #endif /* NO_TRAVCHECK */
@@ -240,6 +241,7 @@ while (pop_dirqueue(&dq) == 0) {
     size_t d_name_len;
 
     if (unlikely(interrupt != 0)) return;
+fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
     LOUD(fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name));
     if (unlikely(!jc_streq(dirinfo->d_name, ".") || !jc_streq(dirinfo->d_name, ".."))) continue;
     check_sigusr1();
@@ -317,17 +319,17 @@ while (pop_dirqueue(&dq) == 0) {
 //add_single_file:
       /* Add regular files to list, including symlink targets if requested */
 #ifndef NO_SYMLINKS
-      if (!ISFLAG(newfile->flags, FF_IS_SYMLINK) || (ISFLAG(newfile->flags, FF_IS_SYMLINK) && ISFLAG(flags, F_FOLLOWLINKS))) {
+      if (!ISFLAG(newfile->flags, FF_IS_SYMLINK) || (ISFLAG(newfile->flags, FF_IS_SYMLINK) && ISFLAG(flags, F_FOLLOWLINKS)))
 #else
-      if (JC_S_ISREG(newfile->mode)) {
+      if (JC_S_ISREG(newfile->mode))
 #endif
+      {
 #ifndef NO_HASHDB
         if (ISFLAG(flags, F_HASHDB)) read_hashdb_entry(newfile);
 #endif
         *filelistp = newfile;
         filecount++;
         progress++;
-
       } else {
         LOUD(fprintf(stderr, "loaddir: not a regular file: %s\n", newfile->d_name);)
         free(newfile->d_name);
