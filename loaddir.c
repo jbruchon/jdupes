@@ -97,6 +97,7 @@ static int push_dirqueue(file_t *newfile, int recurse)
   struct dq *dq_item = calloc(1, sizeof(struct dq));
 
   if (dq_item == NULL) return -1;
+//fprintf(stderr, "push_dq: '%s'\n", newfile->d_name);
 
   dq_item->entry.d_name = newfile->d_name;
   dq_item->entry.d_name_len = newfile->d_name_len;
@@ -126,6 +127,7 @@ static int pop_dirqueue(struct dq_entry *found)
 
   memcpy(found, &(dq_item->entry), sizeof(struct dq_entry));
   free(dq_item);
+//fprintf(stderr, "pop_dq: '%s'\n", found->d_name);
   return 0;
 }
 
@@ -192,7 +194,7 @@ void loaddir(char *startdir, file_t * restrict * const restrict filelistp, int r
 while (pop_dirqueue(&dq) == 0) {
 
   /* Get directory stats (or file stats if it's a file) */
-fprintf(stderr, "loaddir: processing '%s'\n", dq.d_name);
+//fprintf(stderr, "loaddir: processing '%s', dotdir = %d\n", dq.d_name, dotdir);
   i = getdirstats(dq.d_name, &inode, &device, &mode);
   if (unlikely(i < 0)) goto error_stat_dir;
 
@@ -243,7 +245,7 @@ fprintf(stderr, "loaddir: processing '%s'\n", dq.d_name);
     size_t d_name_len;
 
     if (unlikely(interrupt != 0)) return;
-fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
+//fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
     LOUD(fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name));
     if (unlikely(!jc_streq(dirinfo->d_name, ".") || !jc_streq(dirinfo->d_name, ".."))) continue;
     check_sigusr1();
@@ -256,26 +258,34 @@ fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
     d_name_len = jc_get_d_namlen(dirinfo);
     dirpos = 0;
     /* Avoid prefixing '.\' if the dir spec is effectively '.' */
+//fprintf(stderr, "CHECKPOINT: dq.d_name = '%s', dq.d_name_len = '%d'\n", dq.d_name, dq.d_name_len);
     if (likely(dotdir == 0)) {
       dirpos = dq.d_name_len;
       memcpy(tp, dq.d_name, dirpos + 1);
+//fprintf(stderr, "CHECKPOINT[dd]: tp = '%s'\n", tp);
       if (dirpos != 0 && tp[dirpos - 1] != dir_sep) {
         tp[dirpos] = dir_sep;
         dirpos++;
       }
+//fprintf(stderr, "CHECKPOINT[dd]: tp = '%s', dirpos = %llu\n", tp, dirpos);
       if (unlikely(dirpos + d_name_len + 1 >= (JC_PATHBUF_SIZE * 2))) goto error_overflow;
       tp += dirpos;
     }
+    dotdir = 0;  /* Only use dot-dir for a starting directory, never for subdirs */
+//fprintf(stderr, "CHECKPOINT: tp = '%s', dirpos = %llu\n", tp, dirpos);
     memcpy(tp, dirinfo->d_name, d_name_len);
     tp += d_name_len;
     *tp = '\0';
     d_name_len += dirpos;
+//fprintf(stderr, "CHECKPOINT: tp = '%s'\n", tp);
 
     /* Allocate the file_t and the d_name entries */
     newfile = init_newfile(d_name_len, filelistp);
 
     tp = tempname;
+//fprintf(stderr, "CHECKPOINT: tp = '%s', tempname = '%s', newfile->d_name = '%s'\n", tp, tempname, newfile->d_name);
     memcpy(newfile->d_name, tp, d_name_len + 1);
+//fprintf(stderr, "CHECKPOINT: tp = '%s', tempname = '%s', newfile->d_name = '%s'\n", tp, tempname, newfile->d_name);
 
     /*** WARNING: tempname global gets reused by check_singlefile here! ***/
 
@@ -329,7 +339,7 @@ fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
 #ifndef NO_HASHDB
         if (ISFLAG(flags, F_HASHDB)) read_hashdb_entry(newfile);
 #endif
-fprintf(stderr, "loaddir: adding file: '%s'\n", newfile->d_name);
+//fprintf(stderr, "loaddir: adding file: '%s'\n", newfile->d_name);
         *filelistp = newfile;
         filecount++;
         progress++;
