@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
 #include "jdupes.h"
@@ -87,6 +88,10 @@ int save_hash_database(const char * const restrict dbname, uint64_t * const rest
     jc_remove(dbtemp);
     db = jc_fopen(dbtemp, JC_FILE_MODE_RW_SEQ);
     if (db == NULL) goto error_hashdb_open;
+    /* Do not make hash database world-readable by default */
+#ifndef ON_WINDOWS
+    chmod(dbtemp, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+#endif
     if (write_hashdb_entry(db, NULL, &cnt, destroy) != 0) goto error_hashdb_write;
     jc_fclose(db);
     if (new_hashdb == 0) {
