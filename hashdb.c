@@ -520,19 +520,24 @@ int read_hashdb_entry(file_t *file)
   if (file == NULL || file->d_name == NULL) goto error_null;
   if (get_path_hash(file->d_name, file->d_name_len, &path_hash) != 0) goto error_path_hash;
   bucket = path_hash & HT_MASK;
-  if (hashdb[bucket] == NULL) return 0;
+  if (hashdb[bucket] == NULL) goto end_read_hashdb;
   cur = hashdb[bucket];
   while (1) {
     if (cur->path_hash != path_hash) {
       if (path_hash < cur->path_hash) cur = cur->left;
       else cur = cur->right;
-      if (cur == NULL) return 0;
+      if (cur == NULL) goto end_read_hashdb;
       continue;
     }
     /* Found a matching path hash */
-    if (cur->pathlen == file->d_name_len && memcmp(cur->path, file->d_name, cur->pathlen) == 0) {
+    LOUD(fprintf(stderr, "read_hashdb_entry: found a matching path hash\n");)
+    if ((cur->pathlen != file->d_name_len) || (memcmp(cur->path, file->d_name, cur->pathlen) != 0)) {
+      LOUD(fprintf(stderr, "read_hashdb_entry: name check failed, not populating (%u != %u, '%s' != '%s', cmp %d)\n",
+			      cur->pathlen, file->d_name_len,
+			      cur->path, file->d_name,
+			      memcmp(cur->path, file->d_name, cur->pathlen));)
       cur = cur->left;
-      if (cur == NULL) return 0;
+      if (cur == NULL) goto end_read_hashdb;
       continue;
     } else {
       /* Found a matching path too but check mtime */
@@ -542,10 +547,12 @@ int read_hashdb_entry(file_t *file)
       if (cur->size  != file->size)  exclude |= 4;
       if (exclude != 0) {
         /* Invalidate if something has changed */
+        LOUD(fprintf(stderr, "read_hashdb_entry: metadata changed, invalidating entry\n");)
         cur->hashcount = 0;
         hashdb_dirty = 1;
         return -1;
       }
+      LOUD(fprintf(stderr, "read_hashdb_entry: copying hash data to file entry\n");)
       file->filehash_partial = cur->partialhash;
       if (cur->hashcount == 2) {
         file->filehash = cur->fullhash;
@@ -554,6 +561,9 @@ int read_hashdb_entry(file_t *file)
       return 1;
     }
   }
+
+end_read_hashdb:
+  LOUD(fprintf(stderr, "read_hashdb_entry: exhausted hash scan\n");)
   return 0;
 
 error_null:
