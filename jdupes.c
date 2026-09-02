@@ -861,7 +861,7 @@ skip_all_actions:
           break;
         case 1:
           if (hdbsize == 0) fprintf(stderr, "hashdb: no hashing needed; not creating an empty hash database\n");
-          else fprintf(stderr, "hashdb: no data changed; the existing hash database is OK");
+          else fprintf(stderr, "hashdb: no data changed; the existing hash database is OK\n");
           break;
        default:
           fprintf(stderr, "hashdb: error %d while saving the hash database\n", hdbret);
