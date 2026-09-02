@@ -1,3 +1,11 @@
+jdupes 1.31.2 (2026-09-01)
+
+- Change warnings to cause exit status to be failure, not success
+- hashdb: restored functionality, has been 100% broken since v1.28.0
+- hashdb: better status messages
+- hashdb: remove global read permissions when writing for security
+- json: add libjodycode version to output
+
 jdupes 1.31.1 (2025-09-26)
 
 - Fix hash database behavior for hard linking
