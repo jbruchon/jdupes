@@ -4,6 +4,7 @@
 # the output for sameness. Also displays timing statistics.
 
 ERR=0
+[ -z "$SORT" ] && SORT=cat
 
 # Detect installed jdupes
 if [ -z "$ORIG_JDUPES" ]
@@ -23,10 +24,10 @@ test ! -e ./jdupes && echo "Build jdupes first, silly" && exit 1
 
 echo -n "Installed $ORIG_JDUPES:"
 sync
-time $ORIG_JDUPES -q "$@" > installed_output.txt || ERR=1
+time $ORIG_JDUPES -q "$@" | $SORT > installed_output.txt || ERR=1
 echo -en "\nBuilt jdupes:"
 sync
-time ./jdupes -q "$@" > built_output.txt || ERR=1
+time ./jdupes -q "$@" | $SORT > built_output.txt || ERR=1
 diff -Nau installed_output.txt built_output.txt
 
 rm -f installed_output.txt built_output.txt
