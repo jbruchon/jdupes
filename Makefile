@@ -247,7 +247,7 @@ CFLAGS += $(COMPILER_OPTIONS) $(CFLAGS_EXTRA)
 LDFLAGS += $(LINK_OPTIONS) $(LDFLAGS_EXTRA)
 
 
-all: libjodycode_hint $(PROGRAM_NAME) dynamic_jc ljc_vercheck_dynamic
+all: libjodycode_hint $(PROGRAM_NAME) dynamic_jc
 
 hashdb_util: hashdb.o hashdb_util.o
 	$(CC) $(CFLAGS) hashdb.o hashdb_util.o $(LDFLAGS) $(BSTATIC) $(STATIC_LDFLAGS) $(BDYNAMIC) -o hashdb_util$(SUFFIX)
@@ -311,8 +311,10 @@ chrootpackage:
 package:
 	+./generate_packages.sh $(ARCH)
 
+
 .PHONY: ljc_vercheck_static ljc_vercheck_dynamic
 
+ifeq ($(NOVERCHECK),)
 ljc_vercheck_dynamic:
 	$(CC) $(CFLAGS) $(CPPFLAGS) libjodycode_check.c -DSTANDALONE $(LDFLAGS) $(LJC_DYNAMIC) -o ljc_vercheck$(SUFFIX)
 	@echo
@@ -322,7 +324,12 @@ ljc_vercheck_dynamic:
 		else echo "The linked libjodycode feature level is OK."; \
 	fi
 	@echo
+else
+ljc_vercheck_dynamic:
+	@echo "Version check skipped by request (NOVERCHECK set)"
+endif
 
+ifeq ($(NOVERCHECK),)
 ljc_vercheck_static:
 	$(CC) $(CFLAGS) $(CPPFLAGS) libjodycode_check.c -DSTANDALONE $(LDFLAGS) $(BSTATIC) $(STATIC_LDFLAGS) $(BDYNAMIC) -o ljc_vercheck$(SUFFIX)
 	@echo
@@ -332,6 +339,11 @@ ljc_vercheck_static:
 		else echo "The linked libjodycode feature level is OK."; \
 	fi
 	@echo
+else
+ljc_vercheck_static:
+	@echo "Version check skipped by request (NOVERCHECK set)"
+endif
+
 
 libjodycode_hint:
 	$(info hint: if ../libjodycode is built but jdupes won't run, try doing 'make static_jc')

@@ -53,7 +53,7 @@ make CFLAGS_EXTRA='-DYOUR_OPTION_ONE -DYOUR_OPTION_TWO'
 
 This is a list of options that can be "turned on" this way:
 
-ON_WINDOWS         Modify code to compile with MinGW on Windows
+ON_WINDOWS         Compile with MinGW on Windows (this is usually automatic)
 NO_WINDOWS         Disable Windows MinGW special cases (mainly for Cygwin)
 NO_ATIME           Disable all access time features
 NO_CHUNKSIZE       Disable auto I/O chunk sizing code and -C option
@@ -75,20 +75,21 @@ NO_USER_ORDER      Disable isolation and parameter sort order -I, -O
 Certain options can be turned on by setting a variable passed to make instead
 of using CFLAGS_EXTRA, i.e. 'make DEBUG=1':
 
-NO_UNICODE             [Windows only] disable all Unicode support
-DEBUG                  Turn on algorithm statistic reporting with '-D'
-LOUD                   '-@' for low-level debugging; enables DEBUG
-ENABLE_DEDUPE          Enable '-B' deduplication (Linux/macOS: on by default)
-DISABLE_DEDUPE         Forcibly disable (undefine) ENABLE_DEDUPE
-STATIC_DEDUPE_H        Build dedupe support with included minimal header file
-LOW_MEMORY             Build for extremely low-RAM environments (CAUTION!)
-BARE_BONES             Build LOW_MEMORY with very aggressive code removal
-USE_JODY_HASH          Use jody_hash instead of xxHash64 (smaller, slower)
-EXTENRAL_HASH_LIB      Force hash code to be linked in externally (no build)
-FORCE_JC_DLL           Windows only: force linking to nearby libjodycode.dll
-IGNORE_NEARBY_JC       Do NOT use libjodycode at ../libjodycode if it exists
-GC_SECTIONS            Use gcc/ld section garbage collection to reduce size
-USE_LTO                Link-time optimization (requires compiler LTO support)
+NO_UNICODE         [Windows only] disable all Unicode support
+DEBUG              Turn on algorithm statistic reporting with '-D'
+LOUD               '-@' for low-level debugging; enables DEBUG
+ENABLE_DEDUPE      Enable '-B' deduplication (Linux/macOS: on by default)
+DISABLE_DEDUPE     Forcibly disable (undefine) ENABLE_DEDUPE
+STATIC_DEDUPE_H    Build dedupe support with included minimal header file
+LOW_MEMORY         Build for extremely low-RAM environments (CAUTION!)
+BARE_BONES         Build LOW_MEMORY with very aggressive code removal
+USE_JODY_HASH      Use jody_hash instead of xxHash64 (smaller, slower)
+EXTENRAL_HASH_LIB  Force hash code to be linked in externally (no build)
+FORCE_JC_DLL       Windows only: force linking to nearby libjodycode.dll
+IGNORE_NEARBY_JC   Do NOT use libjodycode at ../libjodycode if it exists
+GC_SECTIONS        Use gcc/ld section garbage collection to reduce size
+USE_LTO            Link-time optimization (requires compiler LTO support)
+NOVERCHECK         Do not build and run ljc_vercheck (for cross-compiling)
 
 EXTERNAL_HASH_LIB will build jdupes with the interface code for the chosen hash
 type (xxhash vs jody_hash) but will suppress building the actual code. This is
