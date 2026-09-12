@@ -5,7 +5,7 @@ WINRES_XP="winres_xp.rc"
 WINRES_MAN="winres.manifest.xml"
 
 # Get version number components
-VER="$(grep '^#define VER "' version.h | cut -d\" -f2)"
+VER="$(grep '^#define VER L*"' version.h | cut -d\" -f2)"
 V1="$(echo "$VER" | cut -d. -f1)"; test -z "$V1" && V1=0
 V2="$(echo "$VER" | cut -d. -f2)"; test -z "$V2" && V2=0
 V3="$(echo "$VER" | cut -d. -f3)"; test -z "$V3" && V3=0
