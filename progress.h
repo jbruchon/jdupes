@@ -8,6 +8,9 @@
 extern "C" {
 #endif
 
+void init_taskbar_progress(void);
+void cleanup_taskbar_progress(void);
+void set_taskbar_spinning_progress(void);
 void update_phase1_progress(const char * const restrict type);
 void update_phase2_progress(const char * const restrict msg, const int file_percent);
 

@@ -234,6 +234,16 @@ extern const char *feature_flags[];
 extern const char *s_no_dupes;
 extern int exit_status;
 
+/* Windows 7+ taskbar progress global variables */
+#ifdef ON_WINDOWS
+ #ifndef COBJMACROS
+  #define COBJMACROS
+ #endif
+ #include <shobjidl.h>
+extern ITaskbarList3 *pTaskbarList;
+extern HWND hwnd;
+#endif
+
 int file_has_changed(file_t * const restrict file);
 
 #ifdef __cplusplus

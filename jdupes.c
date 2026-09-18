@@ -145,10 +145,14 @@ const char *s_help = "help";
 /* Exit status; use exit() codes for setting this */
 int exit_status = EXIT_SUCCESS;
 
+/* Windows 7+ progress indicator global variables */
+#ifdef ON_WINDOWS
+ ITaskbarList3 *pTaskbarList = NULL;
+ HWND hwnd = NULL;
+#endif
 /***** End definitions, begin code *****/
 
 /***** Add new functions here *****/
-
 
 #ifdef UNICODE
 int wmain(int argc, wchar_t **wargv)
@@ -245,8 +249,8 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-/* On Windows, set up the terminal and un-wide argv */
 #ifdef ON_WINDOWS
+ /* On Windows, set up the terminal and un-wide argv */
  #ifdef UNICODE
   static char **argv;
   int ut_err = jc_setup_unicode_terminal(argc, wargv, &argv, NULL);
@@ -257,6 +261,8 @@ int main(int argc, char **argv)
     jc_print_error(ut_err);
     exit(EXIT_FAILURE);
   }
+  /* Set up Windows 7+ taskbar progress indicator */
+  init_taskbar_progress();
 #endif /* ON_WINDOWS */
 
 #ifndef NO_CHUNKSIZE
@@ -640,6 +646,11 @@ skip_partialonly_noise:
   /* Catch CTRL-C */
   signal(SIGINT, catch_interrupt);
 
+  /* On Windows 7+, activate the progress bar */
+#ifdef ON_WINDOWS
+  set_taskbar_spinning_progress();
+#endif
+
 #ifndef NO_HASHDB
   if (ISFLAG(flags, F_HASHDB)) {
     hdbsize = load_hash_database(hashdb_name);
@@ -810,6 +821,10 @@ skip_full_check:
 
   if (!ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "\r%60s\r", " ");
 
+#ifdef ON_WINDOWS
+  cleanup_taskbar_progress();
+#endif
+
 skip_file_scan:
   /* Stop catching CTRL+C and firing alarms */
   signal(SIGINT, SIG_DFL);
@@ -917,6 +932,9 @@ error_hashdb_populate:
   exit(EXIT_FAILURE);
 #endif
 interrupt_exit:
+#ifdef ON_WINDOWS
+  cleanup_taskbar_progress();
+#endif
   fprintf(stderr, "%s", s_interrupt);
   exit(EXIT_FAILURE);
 }
