@@ -117,7 +117,7 @@ ifdef ON_WINDOWS
  override undefine ENABLE_DEDUPE
  DISABLE_DEDUPE = 1
  # For Windows progress indicator
- LINK_OPTIONS += -lole32 -luuid
+ LINK_OPTIONS += -lole32
 else
  SO_EXT=.so
  LIB_EXT=.a

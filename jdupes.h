@@ -239,6 +239,8 @@ extern int exit_status;
  #ifndef COBJMACROS
   #define COBJMACROS
  #endif
+ #define INITGUID
+ #include <initguid.h>
  #include <shobjidl.h>
 extern ITaskbarList3 *pTaskbarList;
 extern HWND hwnd;
