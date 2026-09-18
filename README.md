@@ -11,6 +11,12 @@ the links on my home page (Ko-fi, PayPal, SubscribeStar, etc.):
 
 https://www.jodybruchon.com/
 
+Linux users: If you've downloaded an official non-distro-specific binary
+release but the Linux binaries don't work for you, you may need to change the
+hard-coded path to the dynamic linker to match your Linux distribution, e.g.
+
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 jdupes
+
 
 Why use jdupes instead of the original fdupes or other duplicate finders?
 -------------------------------------------------------------------------------
