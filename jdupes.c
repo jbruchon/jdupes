@@ -133,6 +133,9 @@ unsigned int user_item_count = 1;
 
 /* Sort order reversal */
 int sort_direction = 1;
+#ifndef NO_MTIME  /* Remove if new order types are added! */
+ordertype_t ordertype = ORDER_NAME;
+#endif
 
 /* For path name mangling */
 char tempname[JC_PATHBUF_SIZE * 2];
@@ -167,9 +170,6 @@ int main(int argc, char **argv)
   static int opt;
   static int pm = 1;
   static int partialonly_spec = 0;
-#ifndef NO_MTIME  /* Remove if new order types are added! */
-  static ordertype_t ordertype = ORDER_NAME;
-#endif
 #ifndef NO_CHUNKSIZE
   static long manual_chunk_size = 0;
   static struct jc_proc_cacheinfo *pci;

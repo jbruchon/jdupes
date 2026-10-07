@@ -68,14 +68,13 @@ static int sort_intra_set_cmp(const void *a, const void *b)
 {
   const file_t *f1 = *(const file_t * const *)a;
   const file_t *f2 = *(const file_t * const *)b;
-  int cmp;
 
-#ifndef NO_NUMSORT
-  cmp = jc_numeric_strcmp(f1->d_name, f2->d_name, 0);
-#else
-  cmp = strcmp(f1->d_name, f2->d_name);
+#ifndef NO_MTIME
+  if (ordertype == ORDER_TIME) {
+    return sort_pairs_by_mtime((file_t *)f1, (file_t *)f2);
+  }
 #endif
-  return (sort_direction < 0) ? -cmp : cmp;
+  return sort_pairs_by_filename((file_t *)f1, (file_t *)f2);
 }
 
 
@@ -85,18 +84,19 @@ static int sort_inter_set_cmp(const void *a, const void *b)
   const file_t *f1 = *(const file_t * const *)a;
   const file_t *f2 = *(const file_t * const *)b;
 
-  /* Primary set ordering: file size */
+  /* Primary set ordering: file size (largest first) */
   if (f1->size != f2->size) {
-    if (f1->size > f2->size) return (sort_direction < 0) ? -1 : 1;
-    else return (sort_direction < 0) ? 1 : -1;
+    if (f1->size > f2->size) return (sort_direction < 0) ? 1 : -1;
+    else return (sort_direction < 0) ? -1 : 1;
   }
 
-  /* Secondary set ordering: set head path */
-#ifndef NO_NUMSORT
-  return jc_numeric_strcmp(f1->d_name, f2->d_name, 0);
-#else
-  return strcmp(f1->d_name, f2->d_name);
+  /* Secondary set ordering: respects parameter order (-u), mtime (-T), or filename */
+#ifndef NO_MTIME
+  if (ordertype == ORDER_TIME) {
+    return sort_pairs_by_mtime((file_t *)f1, (file_t *)f2);
+  }
 #endif
+  return sort_pairs_by_filename((file_t *)f1, (file_t *)f2);
 }
 
 

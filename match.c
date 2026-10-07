@@ -88,13 +88,11 @@ static void cross_copy_hashes(file_t *file1, file_t *file2)
 #endif  /* NO_HARDLINKS */
 
 
-void registerpair(file_t **matchlist, file_t *newmatch, int (*comparef)(file_t *f1, file_t *f2))
+void registerpair(file_t **matchlist, file_t *newmatch)
 {
   file_t *traverse;
-  file_t *back;
 
-  /* NULL pointer sanity checks */
-  if (unlikely(matchlist == NULL || newmatch == NULL || comparef == NULL)) jc_nullptr("registerpair()");
+  if (unlikely(matchlist == NULL || newmatch == NULL)) jc_nullptr("registerpair()");
   LOUD(fprintf(stderr, "registerpair: '%s', '%s'\n", (*matchlist)->d_name, newmatch->d_name);)
 
 #ifndef NO_ERRORONDUPE
@@ -107,36 +105,15 @@ void registerpair(file_t **matchlist, file_t *newmatch, int (*comparef)(file_t *
 #endif
 
   SETFLAG((*matchlist)->flags, FF_HAS_DUPES);
-  back = NULL;
+  SETFLAG(newmatch->flags, FF_NOT_UNIQUE);
+  newmatch->duplicates = NULL;
+
+  /* Append the new match to the end of the duplicate chain */
   traverse = *matchlist;
-
-  /* FIXME: This needs to be changed! As it currently stands, the compare
-   * function only runs on a pair as it is registered and future pairs can
-   * mess up the sort order. A separate sorting function should happen before
-   * the dupe chain is acted upon rather than while pairs are registered. */
-  while (traverse) {
-    if (comparef(newmatch, traverse) <= 0) {
-      newmatch->duplicates = traverse;
-
-      if (!back) {
-        *matchlist = newmatch; /* update pointer to head of list */
-        SETFLAG(newmatch->flags, FF_HAS_DUPES);
-        CLEARFLAG(traverse->flags, FF_HAS_DUPES); /* flag is only for first file in dupe chain */
-      } else back->duplicates = newmatch;
-
-      break;
-    } else {
-      if (traverse->duplicates == 0) {
-        traverse->duplicates = newmatch;
-        if (!back) SETFLAG(traverse->flags, FF_HAS_DUPES);
-
-        break;
-      }
-    }
-
-    back = traverse;
+  while (traverse->duplicates != NULL) {
     traverse = traverse->duplicates;
   }
+  traverse->duplicates = newmatch;
   return;
 }
 
