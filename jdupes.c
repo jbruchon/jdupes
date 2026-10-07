@@ -785,22 +785,14 @@ skip_partialonly_noise:
 #endif
           ) {
         LOUD(fprintf(stderr, "MAIN: notice: hard linked, quick, or partial-only match (-H/-Q/-T)\n"));
-#ifndef NO_MTIME
-        registerpair(match, curfile, (ordertype == ORDER_TIME) ? sort_pairs_by_mtime : sort_pairs_by_filename);
-#else
-        registerpair(match, curfile, sort_pairs_by_filename);
-#endif
+        registerpair(match, curfile);
         dupecount++;
         goto skip_full_check;
       }
 
       if (confirmmatch(curfile->d_name, (*match)->d_name, curfile->size) == 0) {
         LOUD(fprintf(stderr, "MAIN: registering matched file pair\n"));
-#ifndef NO_MTIME
-        registerpair(match, curfile, (ordertype == ORDER_TIME) ? sort_pairs_by_mtime : sort_pairs_by_filename);
-#else
-        registerpair(match, curfile, sort_pairs_by_filename);
-#endif
+        registerpair(match, curfile);
         dupecount++;
       } else {
         goto skip_full_check;

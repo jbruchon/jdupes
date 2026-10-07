@@ -12,7 +12,7 @@
 
 
 #ifndef NO_USER_ORDER
-static int sort_pairs_by_param_order(file_t *f1, file_t *f2)
+static int sort_pairs_by_param_order(const file_t * const f1, const file_t * const f2)
 {
   if (!ISFLAG(flags, F_USEPARAMORDER)) return 0;
   if (unlikely(f1 == NULL || f2 == NULL)) jc_nullptr("sort_pairs_by_param_order()");
@@ -24,7 +24,7 @@ static int sort_pairs_by_param_order(file_t *f1, file_t *f2)
 
 
 #ifndef NO_MTIME
-int sort_pairs_by_mtime(file_t *f1, file_t *f2)
+int sort_pairs_by_mtime(const file_t * const f1, const file_t * const f2)
 {
   if (unlikely(f1 == NULL || f2 == NULL)) jc_nullptr("sort_pairs_by_mtime()");
 
@@ -46,7 +46,7 @@ int sort_pairs_by_mtime(file_t *f1, file_t *f2)
 #endif
 
 
-int sort_pairs_by_filename(file_t *f1, file_t *f2)
+int sort_pairs_by_filename(const file_t * const f1, const file_t * const f2)
 {
   if (unlikely(f1 == NULL || f2 == NULL)) jc_nullptr("sort_pairs_by_filename()");
 
@@ -71,18 +71,23 @@ static int sort_intra_set_cmp(const void *a, const void *b)
 
 #ifndef NO_MTIME
   if (ordertype == ORDER_TIME) {
-    return sort_pairs_by_mtime((file_t *)f1, (file_t *)f2);
+    return sort_pairs_by_mtime(f1, f2);
   }
 #endif
-  return sort_pairs_by_filename((file_t *)f1, (file_t *)f2);
+  return sort_pairs_by_filename(f1, f2);
 }
 
 
 /* Inter-set: orders duplicate match sets relative to each other */
 static int sort_inter_set_cmp(const void *a, const void *b)
 {
-  const file_t *f1 = *(const file_t * const *)a;
-  const file_t *f2 = *(const file_t * const *)b;
+  const file_t * const f1 = *(const file_t * const *)a;
+  const file_t * const f2 = *(const file_t * const *)b;
+
+#ifndef NO_USER_ORDER
+  int po = sort_pairs_by_param_order(f1, f2);
+  if (po != 0) return po;
+#endif
 
   /* Primary set ordering: file size (largest first) */
   if (f1->size != f2->size) {
@@ -93,10 +98,10 @@ static int sort_inter_set_cmp(const void *a, const void *b)
   /* Secondary set ordering: respects parameter order (-u), mtime (-T), or filename */
 #ifndef NO_MTIME
   if (ordertype == ORDER_TIME) {
-    return sort_pairs_by_mtime((file_t *)f1, (file_t *)f2);
+    return sort_pairs_by_mtime(f1, f2);
   }
 #endif
-  return sort_pairs_by_filename((file_t *)f1, (file_t *)f2);
+  return sort_pairs_by_filename(f1, f2);
 }
 
 
