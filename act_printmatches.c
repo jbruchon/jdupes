@@ -38,7 +38,7 @@ void printmatches(file_t * restrict files)
     files = files->next;
   }
 
-  if (printed == 0) printf("%s", s_no_dupes);
+  if (printed == 0) printf("%s", s_no_dupes); else jc_fwprint(stdout, "", 1);
 
   return;
 }
@@ -77,7 +77,7 @@ void printunique(file_t *files)
     files = files->next;
   }
 
-  if (printed == 0) jc_fwprint(stderr, "No unique files found.", 1);
+  if (printed == 0) jc_fwprint(stderr, "No unique files found.", 1); else jc_fwprint(stdout, "", 1);
 
   return;
 }
