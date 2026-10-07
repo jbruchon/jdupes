@@ -839,6 +839,9 @@ skip_file_scan:
     exit(exit_status);
   }
 
+  /* Stabilize intra-set path order and inter-set order for stable output*/
+  sort_match_sets(&files);
+
 #ifndef NO_DELETE
   if (ISFLAG(a_flags, FA_DELETEFILES)) {
     if (ISFLAG(flags, F_NOPROMPT)) deletefiles(files, 0, 0);

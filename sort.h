@@ -14,6 +14,7 @@ extern "C" {
 int sort_pairs_by_mtime(file_t *f1, file_t *f2);
 #endif
 int sort_pairs_by_filename(file_t *f1, file_t *f2);
+void sort_match_sets(file_t **files_head);
 
 #ifdef __cplusplus
 }
