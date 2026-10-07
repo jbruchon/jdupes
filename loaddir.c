@@ -219,6 +219,7 @@ while (pop_dirqueue(&dq) == 0) {
       fprintf(stderr, "More info at www.jdupes.com or email jody@jodybruchon.com\n");
       sf_warning = 1;
     }
+    free(dq.d_name);
     return; /* Remove when single file is restored */
   }
 
@@ -226,7 +227,10 @@ while (pop_dirqueue(&dq) == 0) {
 #ifndef NO_TRAVCHECK
   if (likely(!ISFLAG(flags, F_NOTRAVCHECK))) {
     i = traverse_check(device, inode);
-    if (unlikely(i == 1)) continue;
+    if (unlikely(i == 1)) {
+      free(dq.d_name);
+      continue;
+    }
     if (unlikely(i == 2)) goto error_stat_dir;
   }
 #endif /* NO_TRAVCHECK */
@@ -237,6 +241,7 @@ while (pop_dirqueue(&dq) == 0) {
   if (unlikely(!cd)) {
     fprintf(stderr, "\ncould not chdir to "); jc_fwprint(stderr, dq.d_name, 1);
     exit_status = EXIT_FAILURE;
+    free(dq.d_name);
     continue;
   }
 
@@ -364,6 +369,7 @@ while (pop_dirqueue(&dq) == 0) {
 
 error_stat_dir:
   fprintf(stderr, "\ncould not stat dir "); jc_fwprint(stderr, dq.d_name, 1);
+  free(dq.d_name);
   exit_status = EXIT_FAILURE;
   return;
 error_push_dq:
