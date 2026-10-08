@@ -6,10 +6,10 @@
 #include "jdupes.h"
 #include "likely_unlikely.h"
 
-static int com_initialized = 0;
-
 /** Windows 7+ taskbar progress functions **/
 #ifdef ON_WINDOWS
+static int com_initialized = 0;
+
 void init_taskbar_progress(void) {
   if (SUCCEEDED(CoInitialize(NULL))) com_initialized = 1;
   else return;
