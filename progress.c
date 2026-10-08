@@ -90,7 +90,9 @@ void update_phase2_progress(const char * const restrict msg, const int file_perc
     fprintf(stderr, "                     ");
     did_fpct = 0;
   }
+#ifdef ON_WINDOWS
   update_taskbar_progress(progress, filecount);
+#endif
 //  fflush(stderr);
   return;
 }
