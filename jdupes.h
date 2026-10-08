@@ -10,17 +10,19 @@ extern "C" {
 
 /* Detect Windows and modify as needed */
 #if defined _WIN32 || defined __MINGW32__
- #ifndef ON_WINDOWS
-  #define ON_WINDOWS 1
+ #ifndef NO_WINDOWS
+  #ifndef ON_WINDOWS
+   #define ON_WINDOWS 1
+  #endif
+  #define NO_SYMLINKS 1
+  #define NO_PERMS 1
+  #define NO_SIGACTION 1
+  #ifndef WIN32_LEAN_AND_MEAN
+   #define WIN32_LEAN_AND_MEAN
+  #endif
+  #include <windows.h>
+  #include <io.h>
  #endif
- #define NO_SYMLINKS 1
- #define NO_PERMS 1
- #define NO_SIGACTION 1
- #ifndef WIN32_LEAN_AND_MEAN
-  #define WIN32_LEAN_AND_MEAN
- #endif
- #include <windows.h>
- #include <io.h>
 #endif /* Win32 */
 
 #include <limits.h>
