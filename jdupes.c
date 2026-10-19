@@ -61,6 +61,7 @@
 #ifdef ENABLE_DEDUPE
  #include "act_dedupefiles.h"
 #endif
+#include "act_breaklinks.h"
 #include "act_linkfiles.h"
 #include "act_printmatches.h"
 #ifndef NO_JSON
@@ -208,7 +209,7 @@ int main(int argc, char **argv)
     { "isolate", 0, 0, 'I' },
     { "reverse", 0, 0, 'i' },
     { "json", 0, 0, 'j' },
-/*    { "skip-hash", 0, 0, 'K' }, */
+    { "break-links", 0, 0, 'K' },
     { "link-hard", 0, 0, 'L' },
     { "link-soft", 0, 0, 'l' },
     { "print-summarize", 0, 0, 'M'},
@@ -391,6 +392,11 @@ int main(int argc, char **argv)
       SETFLAG(flags, F_CONSIDERHARDLINKS);
       LOUD(fprintf(stderr, "opt: hard links count as matches (--hard-links)\n");)
       break;
+    case 'K':
+      SETFLAG(flags, F_CONSIDERHARDLINKS);
+      SETFLAG(a_flags, FA_BREAKLINKS);
+      LOUD(fprintf(stderr, "opt: break hard links (--break-links)\n");)
+      break;
     case 'L':
       SETFLAG(a_flags, FA_HARDLINKFILES);
       LOUD(fprintf(stderr, "opt: convert duplicates to hard links (--link-hard)\n");)
@@ -421,9 +427,6 @@ int main(int argc, char **argv)
       LOUD(fprintf(stderr, "opt: print output in JSON format (--print-json)\n");)
       break;
 #endif /* NO_JSON */
-    case 'K':
-      SETFLAG(flags, F_SKIPHASH);
-      break;
     case 'm':
       SETFLAG(a_flags, FA_SUMMARIZEMATCHES);
       LOUD(fprintf(stderr, "opt: print a summary of match stats (--summarize)\n");)
@@ -609,6 +612,23 @@ skip_partialonly_noise:
     exit(EXIT_FAILURE);
   }
 
+  if (ISFLAG(a_flags, FA_BREAKLINKS)) {
+    /* If pm > 0, conflicting options were passed */
+    pm = ISFLAG(a_flags, FA_SUMMARIZEMATCHES) |
+        ISFLAG(a_flags, FA_DELETEFILES) |
+        ISFLAG(a_flags, FA_HARDLINKFILES) |
+        ISFLAG(a_flags, FA_MAKESYMLINKS) |
+        ISFLAG(a_flags, FA_PRINTJSON) |
+        ISFLAG(a_flags, FA_PRINTUNIQUE) |
+        ISFLAG(a_flags, FA_ERRORONDUPE) |
+        ISFLAG(a_flags, FA_DEDUPEFILES);
+
+    if (pm > 0) {
+      fprintf(stderr, "option --break-links cannot be used with other action options\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+
   if (ISFLAG(a_flags, FA_SUMMARIZEMATCHES) && ISFLAG(a_flags, FA_DELETEFILES)) {
     fprintf(stderr, "options --summarize and --delete are not compatible\n");
     exit(EXIT_FAILURE);
@@ -630,10 +650,11 @@ skip_partialonly_noise:
       !!ISFLAG(a_flags, FA_PRINTJSON) +
       !!ISFLAG(a_flags, FA_PRINTUNIQUE) +
       !!ISFLAG(a_flags, FA_ERRORONDUPE) +
+      !!ISFLAG(a_flags, FA_BREAKLINKS) +
       !!ISFLAG(a_flags, FA_DEDUPEFILES);
 
   if (pm > 1) {
-      fprintf(stderr, "Only one of --summarize, --print-summarize, --delete, --link-hard,\n--link-soft, --json, --error-on-dupe, or --dedupe may be used\n");
+      fprintf(stderr, "Only one of --summarize, --print-summarize, --delete, --link-hard,\n--link-soft, --json, --error-on-dupe, --break-links, or --dedupe may be used\n");
       exit(EXIT_FAILURE);
   }
   if (pm == 0) SETFLAG(a_flags, FA_PRINTMATCHES);
@@ -845,6 +866,7 @@ skip_file_scan:
 #endif /* NO_SYMLINKS */
 #ifndef NO_HARDLINKS
   if (ISFLAG(a_flags, FA_HARDLINKFILES)) linkfiles(files, 1, 0);
+  if (ISFLAG(a_flags, FA_BREAKLINKS)) breaklinks(files);
 #endif /* NO_HARDLINKS */
 #ifdef ENABLE_DEDUPE
   if (ISFLAG(a_flags, FA_DEDUPEFILES)) dedupefiles(files);

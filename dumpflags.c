@@ -28,7 +28,6 @@ void dump_all_flags(void)
   if (ISFLAG(flags, F_PARTIALONLY)) fprintf(stderr, " F_PARTIALONLY");
   if (ISFLAG(flags, F_NOCHANGECHECK)) fprintf(stderr, " F_NOCHANGECHECK");
   if (ISFLAG(flags, F_NOTRAVCHECK)) fprintf(stderr, " F_NOTRAVCHECK");
-  if (ISFLAG(flags, F_SKIPHASH)) fprintf(stderr, " F_SKIPHASH");
   if (ISFLAG(flags, F_BENCHMARKSTOP)) fprintf(stderr, " F_BENCHMARKSTOP");
   if (ISFLAG(flags, F_HASHDB)) fprintf(stderr, " F_HASHDB");
 
@@ -48,6 +47,7 @@ void dump_all_flags(void)
   if (ISFLAG(a_flags, FA_PRINTNULL)) fprintf(stderr, " FA_PRINTNULL");
   if (ISFLAG(a_flags, FA_PRINTJSON)) fprintf(stderr, " FA_PRINTJSON");
   if (ISFLAG(a_flags, FA_ERRORONDUPE)) fprintf(stderr, " FA_ERRORONDUPE");
+  if (ISFLAG(a_flags, FA_BREAKLINKS)) fprintf(stderr, " FA_BREAKLINKS");
 
   /* Extra print flags */
   if (ISFLAG(p_flags, PF_PARTIAL)) fprintf(stderr, " PF_PARTIAL");

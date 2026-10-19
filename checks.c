@@ -83,6 +83,9 @@ int check_conditions(const file_t * const restrict file1, const file_t * const r
       LOUD(fprintf(stderr, "check_conditions: files ignored: hard/soft linked (-H off)\n"));
       return -2;
     }
+  } else if (ISFLAG(a_flags, FA_BREAKLINKS)) {
+    LOUD(fprintf(stderr, "check_conditions: files ignored: not hard-linked (-K on)\n"));
+    return -6;
   }
 #endif
 
@@ -104,7 +107,7 @@ int check_singlefile(file_t * const restrict newfile)
   /* Exclude hidden files if requested */
   if (likely(ISFLAG(flags, F_EXCLUDEHIDDEN))) {
     if (unlikely(newfile->d_name == NULL)) jc_nullptr("check_singlefile newfile->d_name");
-    strcpy(tp, newfile->d_name);
+    memcpy(tp, newfile->d_name, newfile->d_name_len + 1);
     tp = basename(tp);
     if (tp[0] == '.' && jc_streq(tp, ".") && jc_streq(tp, "..")) {
       LOUD(fprintf(stderr, "check_singlefile: excluding hidden file (-A on)\n"));

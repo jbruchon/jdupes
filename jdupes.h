@@ -160,6 +160,7 @@ extern uint64_t flags, a_flags, p_flags;
 #define FA_PRINTNULL		(1U << 9)
 #define FA_PRINTJSON		(1U << 10)
 #define FA_ERRORONDUPE		(1U << 11)
+#define FA_BREAKLINKS		(1U << 12)
 
 /* Per-file true/false flags */
 #define FF_VALID_STAT		(1U << 0)

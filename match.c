@@ -192,6 +192,7 @@ file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
     case -3:    /* user order */
     case -4:    /* one filesystem */
     case -5:    /* permissions */
+    case -6:    /* breaklinks + not a linked pair */
         cantmatch = 1;
         cmpresult = 0;
         break;
@@ -257,9 +258,6 @@ file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
         DBG(small_file++;)
       }
     } else if (cmpresult == 0) {
-//      if (ISFLAG(flags, F_SKIPHASH)) {
-//        LOUD(fprintf(stderr, "checkmatch: skipping full file hashes (F_SKIPMATCH)\n"));
-//      } else {
         /* If partial match was correct, perform a full file hash match */
         if (!ISFLAG(tree->file->flags, FF_HASH_FULL)) {
           filehash = get_filehash(tree->file, 0, hash_algo);
@@ -288,7 +286,6 @@ file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
         LOUD(if (!cmpresult) fprintf(stderr, "checkmatch: full hashes match\n"));
         LOUD(if (cmpresult) fprintf(stderr, "checkmatch: full hashes do not match\n"));
         DBG(full_hash++);
-//      }
     } else {
       DBG(partial_elim++);
     }

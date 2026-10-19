@@ -120,6 +120,8 @@ option is specified (delete, summarize, link, dedupe, etc.)
  -i --reverse           reverse (invert) the match sort order
  -I --isolate           files in the same specified directory won't match
  -j --json              produce JSON (machine-readable) output
+ -K --break-links       split hard-linked file sets back into separate files
+                        This is a partial 'undo' for the -L/--link-hard option
  -l --link-soft         make relative symlinks for duplicates w/o prompting
  -L --link-hard         hard link all duplicate files without prompting
                         Windows allows a maximum of 1023 hard links per file

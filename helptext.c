@@ -135,8 +135,8 @@ void help_text(void)
 #ifndef NO_JSON
   printf(" -j --json        \tproduce JSON (machine-readable) output\n");
 #endif /* NO_JSON */
-/*  printf(" -K --skip-hash   \tskip full file hashing (may be faster; 100%% safe)\n");
-    printf("                  \tWARNING: in development, not fully working yet!\n"); */
+  printf(" -K --break-links \tsplit hard-linked file sets back into separate files\n");
+  printf("                  \tThis is a partial 'undo' for the -L/--link-hard option\n");
 #ifndef NO_SYMLINKS
   printf(" -l --link-soft    \tmake relative symlinks for duplicates w/o prompting\n");
 #endif

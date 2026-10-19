@@ -81,6 +81,10 @@ files are under different parameter specifications
 .B -j --json
 produce JSON (machine-readable) output
 .TP
+.B -K --break-links
+split hard-linked file sets back into separate files as an 'undo' for -L
+ - note: hard linking loses file metadata and -K cannot restore that
+.TP
 .B -L --link-hard
 replace all duplicate files with hardlinks to the first file in each set
 of duplicates
@@ -236,6 +240,9 @@ This file was already a hard link to the first file in the chain
 .TP
 .B -//->
 Linking this file failed due to an error during the linking process
+.TP
+.B -/ ~>
+For -K, this file is no longer hard-linked to the others in the link set
 
 .PP
 Duplicate files are listed together in groups with each file displayed on a

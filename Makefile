@@ -35,6 +35,7 @@ OBJS += hashdb.o
 OBJS += args.o checks.o dumpflags.o extfilter.o filehash.o filestat.o jdupes.o helptext.o
 OBJS += interrupt.o libjodycode_check.o loaddir.o match.o progress.o sort.o travcheck.o
 OBJS += act_deletefiles.o act_linkfiles.o act_printmatches.o act_summarize.o act_printjson.o
+OBJS += act_breaklinks.o
 
 # Configuration section
 COMPILER_OPTIONS = -Wall -Wwrite-strings -Wcast-align -Wstrict-aliasing -Wstrict-prototypes -Wpointer-arith -Wundef
