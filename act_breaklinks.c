@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <sys/types.h>
-#include <utime.h>
 #include <libjodycode.h>
 #include "jdupes.h"
 #include "act_breaklinks.h"
@@ -29,7 +28,7 @@ void breaklinks(file_t * restrict files)
   size_t path_len;
   FILE *src = NULL;
   FILE *dst = NULL;
-  struct utimbuf tb;
+  struct JC_UTIMBUF tb;
 
   LOUD(fprintf(stderr, "breaklinks: %p\n", files));
 
@@ -103,7 +102,7 @@ void breaklinks(file_t * restrict files)
         /* Copy modification time from the master source file */
         tb.actime = files->mtime;
         tb.modtime = files->mtime;
-        if (utime(tempname, &tb) != 0) fprintf(stderr, "warning: failed to set modification time on temporary file\n");
+        if (jc_utime(tempname, &tb) != 0) fprintf(stderr, "warning: failed to set modification time on temporary file\n");
 
         if (jc_remove(tmpfile->d_name) != 0) {
           fprintf(stderr, "error: error removing original hard link\n");
