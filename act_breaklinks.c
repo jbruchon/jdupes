@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <utime.h>
 #include <libjodycode.h>
 #include "jdupes.h"
 #include "act_breaklinks.h"
@@ -27,6 +29,7 @@ void breaklinks(file_t * restrict files)
   size_t path_len;
   FILE *src = NULL;
   FILE *dst = NULL;
+  struct utimbuf tb;
 
   LOUD(fprintf(stderr, "breaklinks: %p\n", files));
 
@@ -67,7 +70,7 @@ void breaklinks(file_t * restrict files)
         memcpy(tempname, tmpfile->d_name, path_len);
         memcpy(tempname + path_len, s_temp_ext, sizeof(s_temp_ext));
 
-        dst = jc_fopen(tempname, JC_FILE_MODE_WRONLY);
+        dst = jc_fopen(tempname, JC_FILE_MODE_WRONLY_SEQ);
         if (dst == NULL) {
           fprintf(stderr, "error: failed to open temp destination\n");
           goto error_still_linked;
@@ -93,6 +96,14 @@ void breaklinks(file_t * restrict files)
 
         jc_fclose(dst);
         dst = NULL;
+
+        /* Copy permissions from the master source file */
+        if (jc_chmod(tempname, files->mode) != 0) fprintf(stderr, "warning: failed to set permissions on temporary file\n");
+
+        /* Copy modification time from the master source file */
+        tb.actime = files->mtime;
+        tb.modtime = files->mtime;
+        if (utime(tempname, &tb) != 0) fprintf(stderr, "warning: failed to set modification time on temporary file\n");
 
         if (jc_remove(tmpfile->d_name) != 0) {
           fprintf(stderr, "error: error removing original hard link\n");

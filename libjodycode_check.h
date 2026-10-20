@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 /* Set this to the minimum feature level required by your program */
-#define MY_FEATURELEVEL_REQ 5
+#define MY_FEATURELEVEL_REQ 6
 
 extern const int jc_build_api_major;
 extern const int jc_build_api_minor;
