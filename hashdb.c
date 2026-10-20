@@ -90,7 +90,11 @@ void set_hashdb_backup_name(const char *name)
     }
     return;
   } else if (*name != '\0') {
-    hashdb_backup_name = strdup(name);
+    if (strcmp(name, ".") == 0) {
+      hashdb_backup_name = strdup("jdupes_hashdb_old.txt");
+    } else {
+      hashdb_backup_name = strdup(name);
+    }
     if (hashdb_backup_name == NULL) jc_oom("hashdb backup name");
   }
   return;
@@ -127,8 +131,16 @@ int save_hash_database(const char * const restrict dbname, uint64_t * const rest
     jc_fclose(db);
     if (new_hashdb == 0) {
       if (hashdb_backup_name != NULL) {
+        struct JC_STAT st;
+        if (jc_stat(hashdb_backup_name, &st) == 0) {
+          if (!JC_S_ISREG(st.st_mode)) {
+            fprintf(stderr, "error: backup target '%s' is not a regular file\n", hashdb_backup_name);
+	    jc_errno = EISDIR;
+            goto error_hashdb_backup;
+          }
+        }
         jc_remove(hashdb_backup_name);
-	jc_errno = 0;
+        jc_errno = 0;
         if (jc_rename(dbname, hashdb_backup_name) != 0) {
           if (jc_errno != ENOENT) goto error_hashdb_backup;
         } else {
@@ -154,24 +166,24 @@ error_hashdb_null:
   fprintf(stderr, "error: internal failure: NULL pointer for hashdb\n");
   return -1;
 error_hashdb_open:
-  fprintf(stderr, "error: cannot open temp hashdb '%s' for writing: %s\n", dbtemp, strerror(errno));
+  fprintf(stderr, "error: cannot open temp hashdb '%s' for writing: %s\n", dbtemp, strerror(jc_errno));
   return -2;
 error_hashdb_write:
-  fprintf(stderr, "error: write failed to temp hashdb '%s': %s\n", dbtemp, strerror(errno));
+  fprintf(stderr, "error: write failed to temp hashdb '%s': %s\n", dbtemp, strerror(jc_errno));
   jc_fclose(db);
   return -3;
 error_hashdb_alloc:
   fprintf(stderr, "error: cannot allocate memory for temporary hashdb name\n");
   return -4;
 error_hashdb_remove:
-  fprintf(stderr, "error: cannot delete old hashdb '%s': %s\n", dbname, strerror(errno));
+  fprintf(stderr, "error: cannot delete old hashdb '%s': %s\n", dbname, strerror(jc_errno));
   jc_remove(dbtemp);
   return -5;
 error_hashdb_rename:
-  fprintf(stderr, "error: cannot rename temporary hashdb '%s' to '%s'; leaving it alone: %s\n", dbtemp, dbname, strerror(errno));
+  fprintf(stderr, "error: cannot rename temporary hashdb '%s' to '%s'; leaving it alone: %s\n", dbtemp, dbname, strerror(jc_errno));
   return -6;
 error_hashdb_backup:
-  fprintf(stderr, "error: cannot backup old hashdb '%s' to '%s': %s\n", dbname, hashdb_backup_name, strerror(errno));
+  fprintf(stderr, "error: cannot backup old hashdb '%s' to '%s': %s\n", dbname, hashdb_backup_name, strerror(jc_errno));
   jc_remove(dbtemp);
   return -7;
 }
@@ -190,9 +202,9 @@ static int write_hashdb_entry(FILE *db, hashdb_t *cur, uint64_t *cnt, const int 
       gettimeofday(&tm, NULL);
       snprintf(out, JC_PATHBUF_SIZE + 127, "jdupes hashdb:%d,%d,%08lx\n", HASHDB_VER, hash_algo, (unsigned long)tm.tv_sec);
       LOUD(fprintf(stderr, "write hashdb: %s", out);)
-      errno = 0;
-      fputs(out, db);
-      if (errno != 0) return 1;
+      jc_errno = 0;
+      jc_fputs(out, db);
+      if (jc_errno != 0) return 1;
     }
     /* Write out each hash bucket, skipping empty buckets */
     for (int i = 0; i < HT_SIZE; i++) {
@@ -213,9 +225,9 @@ static int write_hashdb_entry(FILE *db, hashdb_t *cur, uint64_t *cnt, const int 
       cur->hashcount, cur->partialhash, cur->fullhash, (uint64_t)cur->mtime, (uint64_t)cur->size, (uint64_t)cur->inode, cur->path);
     (*cnt)++;
     LOUD(fprintf(stderr, "write hashdb: %s", out);)
-    errno = 0;
-    if (db == NULL) printf("%s", out); else fputs(out, db);
-    if (errno != 0) return 1;
+    jc_errno = 0;
+    if (db == NULL) printf("%s", out); else jc_fputs(out, db);
+    if (jc_errno != 0) return 1;
   }
 
   /* Traverse the tree, propagating errors */
@@ -413,13 +425,13 @@ int64_t load_hash_database(const char * const restrict dbname)
 
   if (dbname == NULL) goto error_hashdb_null;
   LOUD(fprintf(stderr, "load_hash_database('%s')\n", dbname);)
-  errno = 0;
+  jc_errno = 0;
   db = jc_fopen(dbname, JC_FILE_MODE_RDONLY_SEQ);
   if (db == NULL) goto warn_hashdb_open;
 
   /* Read header line */
-  if ((fgets(buf, JC_PATHBUF_SIZE + 127, db) == NULL) || (ferror(db) != 0)) {
-    if (errno == 0) goto warn_hashdb_open;  // empty file = make new DB
+  if ((jc_fgets(buf, JC_PATHBUF_SIZE + 127, db) == NULL) || (jc_ferror(db) != 0)) {
+    if (jc_errno == 0) goto warn_hashdb_open;  // empty file = make new DB
     goto error_hashdb_read;
   } else if (!ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "Loading hash database...");
   field = strtok(buf, ":");
@@ -454,9 +466,9 @@ int64_t load_hash_database(const char * const restrict dbname)
     off_t size;
     jdupes_ino_t inode;
 
-    errno = 0;
-    if ((fgets(line, JC_PATHBUF_SIZE + 128, db) == NULL)) {
-      if (ferror(db) != 0) goto error_hashdb_read;
+    jc_errno = 0;
+    if ((jc_fgets(line, JC_PATHBUF_SIZE + 128, db) == NULL)) {
+      if (jc_ferror(db) != 0) goto error_hashdb_read;
       break;
     }
     LOUD(fprintf(stderr, "read hashdb: %s", line);)
@@ -509,7 +521,7 @@ warn_hashdb_open:
   new_hashdb = 1;
   return 0;
 error_hashdb_read:
-  fprintf(stderr, "error reading hash database '%s': %s\n", dbname, strerror(errno));
+  fprintf(stderr, "error reading hash database '%s': %s\n", dbname, strerror(jc_errno));
   jc_fclose(db);
   return -1;
 error_hashdb_header:

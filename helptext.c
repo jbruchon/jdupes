@@ -361,6 +361,7 @@ void help_text_hashdb_opts(void)
 
   printf("backup=backup_hashdb_name\n");
   printf("  If a new hashdb is written, rename the old hashdb to given backup_hashdb_name\n");
+  printf("  Using backup=. will set the backup database name to 'jdupes_hashdb_old.txt'\n");
 #else /* NO_HELPTEXT */
   version_text(0);
 #endif /* NO_HELPTEXT */

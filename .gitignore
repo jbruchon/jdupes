@@ -28,6 +28,7 @@
 /jdupes-*-*/
 /jdupes-*-*.zip
 /jdupes_hashdb.txt
+/jdupes_hashdb_old.txt
 /*.pkg.tar.*
 /ljc_vercheck*
 test_temp

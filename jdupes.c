@@ -347,7 +347,6 @@ int main(int argc, char **argv)
           fprintf(stderr, "error: --hash-db-opts backup requires a filename argument\n");
           exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "hashdb: backup database name is '%s'\n", optarg + 7);
         set_hashdb_backup_name(optarg + 7);
       } else {
         fprintf(stderr, "invalid value for --hash-db-opts: '%s'\n", optarg);
@@ -357,10 +356,10 @@ int main(int argc, char **argv)
 #endif /* NO_HASHDB */
 #ifndef NO_CHUNKSIZE
     case 'C':
-      errno = 0;
+      jc_errno = 0;
       if (jc_strcaseeq(optarg, s_help) == 0) { help_text_chunksize(); exit(EXIT_SUCCESS); }
       manual_chunk_size = strtol(optarg, NULL, 10);
-      if (errno != 0 || manual_chunk_size < 0 || manual_chunk_size > MAX_CHUNK_OPT_SIZE) {
+      if (jc_errno != 0 || manual_chunk_size < 0 || manual_chunk_size > MAX_CHUNK_OPT_SIZE) {
         fprintf(stderr, "error: -C/--chunk-size '%s' invalid or out of range\n", optarg);
         fprintf(stderr, "Run 'jdupes -C help' for info on the new size specifications.\n");
         fprintf(stderr, "\nnotice: The -C/--chunk-size parameter has changed!\n");
