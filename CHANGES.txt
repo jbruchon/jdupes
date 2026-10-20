@@ -1,3 +1,14 @@
+jdupes 1.31.3 (2026-10-20)
+
+- NOTE: this version requires libjodycode 4.2 or higher
+- Stabilize output; same input data set should produce same sorted output
+- Add -K/--break-links option to "undo" hard links (doesn't restore metadata)
+- Add -b/--hash-db-opts to pass hashdb-specific options
+- Add -b backup=name to back up existing hashdb when writing a new one
+- Add -b cleanup to scan hashdb for changed/deleted files and clean them out
+- Windows: add Windows 7+ taskbar progress indication
+- WANRING: This version fails some Debian package tests; use at your own risk
+
 jdupes 1.31.2 (2026-09-01)
 
 - Change warnings to cause exit status to be failure, not success
