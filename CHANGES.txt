@@ -16,6 +16,7 @@ jdupes 1.31.2 (2026-09-01)
 - hashdb: better status messages
 - hashdb: remove global read permissions when writing for security
 - json: add libjodycode version to output
+- WANRING: This version fails some Debian package tests; use at your own risk
 
 jdupes 1.31.1 (2025-09-26)
 
