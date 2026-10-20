@@ -1,5 +1,5 @@
 /* jdupes duplicate file finder utility
- * Copyright (C) 2015-2025 by Jody Bruchon <jody@jodybruchon.com>
+ * Copyright (C) 2015-2026 by Jody Bruchon <jody@jodybruchon.com>
  * Licensed under The MIT License; see LICENSE.txt for details */
 
 #include <stdio.h>

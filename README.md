@@ -674,7 +674,7 @@ Have a bug report or questions? contact Jody Bruchon <jody@jodybruchon.com>
 
 Legal information and software license
 -------------------------------------------------------------------------------
-jdupes is Copyright (C) 2015-2025 by Jody Bruchon <jody@jodybruchon.com>
+jdupes is Copyright (C) 2015-2026 by Jody Bruchon <jody@jodybruchon.com>
 
 Derived from the original 'fdupes' 1.51 (C) 1999-2014 by Adrian Lopez
 
