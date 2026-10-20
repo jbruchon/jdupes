@@ -339,8 +339,16 @@ int main(int argc, char **argv)
 #endif /* ENABLE_DEDUPE */
 #ifndef NO_HASHDB
     case 'b':
+      if (jc_strcaseeq(optarg, s_help) == 0) { help_text_hashdb_opts(); exit(EXIT_SUCCESS); }
       if (jc_strcaseeq(optarg, "cleanup") == 0) {
         cleanup_the_hashdb = 1;
+      } else if (jc_strncaseeq(optarg, "backup", 6) == 0) {
+        if (*(optarg + 6) != '=' || *(optarg + 7) == '\0') {
+          fprintf(stderr, "error: --hash-db-opts backup requires a filename argument\n");
+          exit(EXIT_FAILURE);
+        }
+        fprintf(stderr, "hashdb: backup database name is '%s'\n", optarg + 7);
+        set_hashdb_backup_name(optarg + 7);
       } else {
         fprintf(stderr, "invalid value for --hash-db-opts: '%s'\n", optarg);
         exit(EXIT_FAILURE);
@@ -541,7 +549,7 @@ int main(int argc, char **argv)
     case 'y':
       SETFLAG(flags, F_HASHDB);
       LOUD(fprintf(stderr, "opt: use a hash database (--hash-db)\n");)
-      fprintf(stderr, "NOTICE: hashdb is experimental. Report issues to jody@jodybruchon.com\n");
+      fprintf(stderr, "notice: hashdb is experimental. Report issues to jody@jodybruchon.com\n");
       hdbsize = 0;
       hdblen = strlen(optarg) + 1;
       if (hdblen < 24) hdblen = 24;
@@ -920,6 +928,7 @@ skip_all_actions:
     }
   }
   if (hashdb_name != NULL) free(hashdb_name);
+  set_hashdb_backup_name(NULL);
 #endif
 
 #ifdef DEBUG

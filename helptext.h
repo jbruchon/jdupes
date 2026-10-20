@@ -12,6 +12,7 @@ void version_text(int short_version);
 void help_text(void);
 void help_text_extfilter(void);
 void help_text_chunksize(void);
+void help_text_hashdb_opts(void);
 
 #ifdef __cplusplus
 }

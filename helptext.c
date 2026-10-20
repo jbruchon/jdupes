@@ -101,6 +101,10 @@ void help_text(void)
   printf(" -0 --print-null  \toutput nulls instead of CR/LF (like 'find -print0')\n");
   printf(" -1 --one-file-system\tdo not match files on different filesystems/devices\n");
   printf(" -A --no-hidden    \texclude hidden files from consideration\n");
+#ifndef NO_HASHDB
+  printf(" -b --hash-db-opts=opt\thash database options and operations\n");
+  printf("                  \tUse '-b help' for extended hashdb options help\n");
+#endif
 #ifdef ENABLE_DEDUPE
   printf(" -B --dedupe      \tdo a copy-on-write (reflink/clone) deduplication\n");
 #endif
@@ -339,3 +343,26 @@ void version_text(int short_version)
 #endif /* NO_HELPTEXT */
   return;
 }
+
+
+#ifndef NO_HASHDB
+void help_text_hashdb_opts(void)
+{
+#ifndef NO_HELPTEXT
+  printf("\nDetailed help for jdupes -b/--hash-db-opts options\n");
+  printf("General format: jdupes -b option[[:|=]option_modifiers]\n\n");
+
+  printf("cleanup\n");
+  printf("\n");
+  printf("  Invalidates all entries in the loaded hash database that have either\n");
+  printf("  been deleted or changed since the database was last written. This is\n");
+  printf("  a destructive cleanup that can significantly reduce the size of the\n");
+  printf("  database after large deletions. Changes are written on program exit.\n\n");
+
+  printf("backup=backup_hashdb_name\n");
+  printf("  If a new hashdb is written, rename the old hashdb to given backup_hashdb_name\n");
+#else /* NO_HELPTEXT */
+  version_text(0);
+#endif /* NO_HELPTEXT */
+}
+#endif /* NO_HASHDB */

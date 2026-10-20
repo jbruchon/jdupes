@@ -36,6 +36,7 @@ static int hashdb_init = 0;
 static int hashdb_algo = 0;
 static int hashdb_dirty = 0;
 static int new_hashdb = 0;
+static char *hashdb_backup_name = NULL;
 
 /* Pivot direction for rebalance */
 enum pivot { PIVOT_LEFT, PIVOT_RIGHT };
@@ -79,6 +80,23 @@ void add_file_to_hashdb(file_t *file)
 }
 
 
+/* Pass NULL to clear the name */
+void set_hashdb_backup_name(const char *name)
+{
+  if (name == NULL) {
+    if (hashdb_backup_name != NULL) {
+      free(hashdb_backup_name);
+      hashdb_backup_name = NULL;
+    }
+    return;
+  } else if (*name != '\0') {
+    hashdb_backup_name = strdup(name);
+    if (hashdb_backup_name == NULL) jc_oom("hashdb backup name");
+  }
+  return;
+}
+
+
 /* destroy = 1 will free() all nodes while saving
  * entries will be filled with the number of entries written to the database
  * returns 0 on success, 1 on success but no writes, negative values on error */
@@ -108,9 +126,19 @@ int save_hash_database(const char * const restrict dbname, uint64_t * const rest
     if (write_hashdb_entry(db, NULL, &cnt, destroy) != 0) goto error_hashdb_write;
     jc_fclose(db);
     if (new_hashdb == 0) {
-      jc_errno = 0;
-      if (jc_remove(dbname) != 0) {
-        if (jc_errno != ENOENT) goto error_hashdb_remove;
+      if (hashdb_backup_name != NULL) {
+        jc_remove(hashdb_backup_name);
+	jc_errno = 0;
+        if (jc_rename(dbname, hashdb_backup_name) != 0) {
+          if (jc_errno != ENOENT) goto error_hashdb_backup;
+        } else {
+          fprintf(stderr, "hashdb: backed up '%s' to '%s'\n", dbname, hashdb_backup_name);
+        }
+      } else {
+        jc_errno = 0;
+        if (jc_remove(dbname) != 0) {
+          if (jc_errno != ENOENT) goto error_hashdb_remove;
+        }
       }
     }
     if (jc_rename(dbtemp, dbname) != 0) goto error_hashdb_rename;
@@ -142,6 +170,10 @@ error_hashdb_remove:
 error_hashdb_rename:
   fprintf(stderr, "error: cannot rename temporary hashdb '%s' to '%s'; leaving it alone: %s\n", dbtemp, dbname, strerror(errno));
   return -6;
+error_hashdb_backup:
+  fprintf(stderr, "error: cannot backup old hashdb '%s' to '%s': %s\n", dbname, hashdb_backup_name, strerror(errno));
+  jc_remove(dbtemp);
+  return -7;
 }
 
 
