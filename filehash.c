@@ -132,7 +132,7 @@ uint64_t *get_filehash(const file_t * const restrict checkfile, const size_t max
 
     if (interrupt) return 0;
     bytes_to_read = (fsize >= (off_t)auto_chunk_size) ? auto_chunk_size : (size_t)fsize;
-    if (unlikely(fread((void *)chunk, bytes_to_read, 1, file) != 1)) goto error_reading_file;
+    if (unlikely(jc_fread((void *)chunk, bytes_to_read, 1, file) != 1)) goto error_reading_file;
 
   switch (algo) {
 #ifndef NO_XXHASH2

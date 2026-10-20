@@ -703,7 +703,7 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
         }
       }
       *cnt = cleaned;
-      LOUD(fprintf(stderr, "cleanup_hashdb: scanned " PRIu64 ", removed" PRIu64 "\n", i, cleaned);)
+      LOUD(fprintf(stderr, "cleanup_hashdb: scanned %" PRIu64 ", removed %" PRIu64 "\n", i, cleaned);)
     }
 
     free(list);

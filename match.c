@@ -377,8 +377,8 @@ int confirmmatch(const char * const restrict file1, const char * const restrict 
 
   do {
     if (interrupt) goto different;
-    r1 = fread(c1, sizeof(char), auto_chunk_size, fp1);
-    r2 = fread(c2, sizeof(char), auto_chunk_size, fp2);
+    r1 = jc_fread(c1, sizeof(char), auto_chunk_size, fp1);
+    r2 = jc_fread(c2, sizeof(char), auto_chunk_size, fp2);
 
     if (r1 != r2) goto different; /* file lengths are different */
     if (memcmp (c1, c2, r1)) goto different; /* file contents are different */

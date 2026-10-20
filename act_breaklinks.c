@@ -81,8 +81,8 @@ void breaklinks(file_t * restrict files)
         }
 
         /* Copy source file to temp destination */
-        while ((bytes = fread(buf, 1, auto_chunk_size, src)) > 0) {
-          if (fwrite(buf, 1, bytes, dst) != bytes) {
+        while ((bytes = jc_fread(buf, 1, auto_chunk_size, src)) > 0) {
+          if (jc_fwrite(buf, 1, bytes, dst) != bytes) {
             read_error = 1;
             break;
           }
