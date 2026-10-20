@@ -35,6 +35,23 @@ do not match files that are on different filesystems or devices
 .B -A --no-hidden
 exclude hidden files from consideration
 .TP
+.B  -b --hash-db-opts=opt
+hash database options and operations; general format:
+
+.B jdupes -b option[[:|=]option_modifiers]
+
+.RS
+.IP `cleanup'
+invalidates all entries in the loaded hash database that have either
+been deleted or changed since the database was last written. This is
+a destructive cleanup that can significantly reduce the size of the
+database after large deletions. Changes are written on program exit.
+.IP `backup=backup_hashdb_name'
+if a new hashdb is written, rename the old hashdb to given backup_hashdb_name
+Using backup=. will set the backup database name to 'jdupes_hashdb_old.txt'
+.RE
+
+.TP
 .B -B --dedupe
 call same-extents ioctl or clonefile() to trigger a filesystem-level
 data deduplication on disk (known as copy-on-write, CoW, cloning, or
@@ -201,10 +218,10 @@ file path, so it can be used to match directories: -X nostr:dir_name/
 .IP `onlystr:text_string'
 require all paths to contain the substring text_string. This scans the full
 file path, so it can be used to match directories: -X onlystr:dir_name/
-.IP `newer:datetime`
+.IP `newer:datetime'
 only include files newer than specified date.
 Date/time format: "YYYY-MM-DD HH:MM:SS" (time is optional).
-.IP `older:datetime`
+.IP `older:datetime'
 only include files older than specified date.
 Date/time format: "YYYY-MM-DD HH:MM:SS" (time is optional).
 .RE
