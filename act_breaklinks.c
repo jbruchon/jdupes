@@ -16,9 +16,6 @@
 #include "likely_unlikely.h"
 
 
-static const char * const s_temp_suffix = ".__jdupes__tempcopy";
-
-
 void breaklinks(file_t * restrict files)
 {
 #ifndef NO_HASHDB
@@ -62,13 +59,13 @@ void breaklinks(file_t * restrict files)
         int read_error = 0;
 
         path_len = strlen(tmpfile->d_name);
-        if (path_len + sizeof(".__jdupes__tempcopy") >= (JC_PATHBUF_SIZE * 2)) {
+        if (path_len + sizeof(s_temp_ext) >= (JC_PATHBUF_SIZE * 2)) {
           fprintf(stderr, "error: path too long for buffer\n");
           goto error_still_linked;
         }
 
         memcpy(tempname, tmpfile->d_name, path_len);
-        memcpy(tempname + path_len, s_temp_suffix, sizeof(".__jdupes__tempcopy"));
+        memcpy(tempname + path_len, s_temp_ext, sizeof(s_temp_ext));
 
         dst = jc_fopen(tempname, JC_FILE_MODE_WRONLY);
         if (dst == NULL) {

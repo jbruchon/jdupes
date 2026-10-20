@@ -286,7 +286,7 @@ void linkfiles(file_t *files, const int linktype, const int only_current)
         if (name_len > JC_PATHBUF_SIZE) continue;
         /* Assemble a temporary file name */
         strcpy(tempname, dupelist[x]->d_name);
-        strcat(tempname, ".__jdupes__.tmp");
+        strcat(tempname, s_temp_ext);
         /* Rename the destination file to the temporary name */
         i = jc_rename(dupelist[x]->d_name, tempname);
         if (i != 0) {

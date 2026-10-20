@@ -142,6 +142,7 @@ ordertype_t ordertype = ORDER_NAME;
 char tempname[JC_PATHBUF_SIZE * 2];
 
 /* Strings used in multiple places */
+const char *s_temp_ext = ".__jdupes__.tmp";
 const char *s_interrupt = "\nStopping file scan due to user abort\n";
 const char *s_no_dupes = "No duplicates found.\n";
 const char *s_help = "help";

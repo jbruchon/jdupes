@@ -39,6 +39,7 @@ OBJS += act_breaklinks.o
 
 # Configuration section
 COMPILER_OPTIONS = -Wall -Wwrite-strings -Wcast-align -Wstrict-aliasing -Wstrict-prototypes -Wpointer-arith -Wundef
+COMPILER_OPTIONS += -Wno-sizeof-pointer-memaccess
 COMPILER_OPTIONS += -Wshadow -Wfloat-equal -Waggregate-return -Wcast-qual -Wswitch-default -Wswitch-enum -Wunreachable-code -Wformat=2
 COMPILER_OPTIONS += -std=gnu11 -D_FILE_OFFSET_BITS=64 -fstrict-aliasing -pipe
 COMPILER_OPTIONS += -DNO_ATIME
