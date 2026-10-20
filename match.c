@@ -21,18 +21,6 @@
 #include "progress.h"
 
 
-#ifndef NO_HASHDB
-void add_file_to_hashdb(file_t *file)
-{
-  if (ISFLAG(file->flags, FF_HASHDB_DIRTY)) {
-    CLEARFLAG(file->flags, FF_HASHDB_DIRTY);
-    add_hashdb_entry(NULL, 0, file, 0);
-  }
-  return;
-}
-#endif /* NO_HASHDB */
-
-
 #ifndef NO_HARDLINKS
 /* Copy any hashes between entries for detected hard-linked files */
 static void cross_copy_hashes(file_t *file1, file_t *file2)

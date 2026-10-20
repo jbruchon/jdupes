@@ -1,6 +1,8 @@
 /* File hash database management
  * This file is part of jdupes; see jdupes.c for license information */
 
+#ifndef NO_HASHDB
+
 #include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -63,6 +65,17 @@ static hashdb_t *alloc_hashdb_node(const int pathlen)
 
   allocsize = sizeof(hashdb_t) + pathlen + 1;
   return (hashdb_t *)calloc(1, EXTEND64(allocsize));
+}
+
+
+/* Dirty flag gated hashdb addition */
+void add_file_to_hashdb(file_t *file)
+{
+  if (ISFLAG(file->flags, FF_HASHDB_DIRTY)) {
+    CLEARFLAG(file->flags, FF_HASHDB_DIRTY);
+    add_hashdb_entry(NULL, 0, file, 0);
+  }
+  return;
 }
 
 
@@ -138,7 +151,7 @@ static int write_hashdb_entry(FILE *db, hashdb_t *cur, uint64_t *cnt, const int 
   int err = 0;
   static char out[JC_PATHBUF_SIZE + 128];
 
-  LOUD(fprintf(stderr, "write_hashdb_entry(%p, %p, %p, %d)", db, cur, cnt, destroy);)
+  LOUD(fprintf(stderr, "write_hashdb_entry(%p, %p, %p, %d)\n", db, cur, cnt, destroy);)
   /* Write header and traverse array on first call */
   if (unlikely(cur == NULL)) {
     if (hashdb_dirty == 1) {
@@ -626,3 +639,5 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
   if (err == 0 && cur->right != NULL) err = cleanup_hashdb(cnt, cur->right);
   return err;
 }
+
+#endif /* NO_HASHDB */

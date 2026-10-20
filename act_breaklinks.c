@@ -1,6 +1,8 @@
 /* jdupes action for breaking hard linked file sets
  * This file is part of jdupes; see jdupes.c for license information */
 
+#ifndef NO_HARDLINKS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +11,8 @@
 #include <libjodycode.h>
 #include "jdupes.h"
 #include "act_breaklinks.h"
+#include "filestat.h"
+#include "hashdb.h"
 #include "likely_unlikely.h"
 
 
@@ -17,6 +21,9 @@ static const char * const s_temp_suffix = ".__jdupes__tempcopy";
 
 void breaklinks(file_t * restrict files)
 {
+#ifndef NO_HASHDB
+  file_t * restrict srcfile;
+#endif
   file_t * restrict tmpfile;
   int processed = 0;
   static char *buf = NULL;
@@ -24,7 +31,7 @@ void breaklinks(file_t * restrict files)
   FILE *src = NULL;
   FILE *dst = NULL;
 
-  LOUD(fprintf(stderr, "breaklinks mode: %p\n", files));
+  LOUD(fprintf(stderr, "breaklinks: %p\n", files));
 
   if (unlikely(buf == NULL)) buf = (char *)malloc(auto_chunk_size);
   if (unlikely(buf == NULL)) jc_oom("breaklinks() buffer");
@@ -33,6 +40,9 @@ void breaklinks(file_t * restrict files)
     if (ISFLAG(files->flags, FF_HAS_DUPES)) {
       processed = 1;
 
+#ifndef NO_HASHDB
+      srcfile = files;
+#endif
       src = jc_fopen(files->d_name, JC_FILE_MODE_RDONLY);
       if (src == NULL) {
         fprintf(stderr, "error: failed to open master file source: ");
@@ -100,6 +110,22 @@ void breaklinks(file_t * restrict files)
         printf("-/ ~> ");
         jc_fwprint(stdout, tmpfile->d_name, 1);
 
+#ifndef NO_HASHDB
+	/* If using a hashdb, create a hash copy entry for the new file */
+	if (ISFLAG(flags, F_HASHDB)) {
+          LOUD(fprintf(stderr, "breaklinks add to hashdb: '%s' => '%s'\n", srcfile->d_name, tmpfile->d_name));
+          uint64_t hashflags = srcfile->flags & (FF_HASH_PARTIAL | FF_HASH_FULL);
+          if (hashflags != 0) {
+	    CLEARFLAG(tmpfile->flags, FF_VALID_STAT);
+            getfilestats(tmpfile);
+            SETFLAG(tmpfile->flags, hashflags);
+            tmpfile->filehash_partial = srcfile->filehash_partial;
+            tmpfile->filehash = srcfile->filehash;
+            add_hashdb_entry(NULL, 0, tmpfile, 1);
+	  }
+	}
+#endif
+
         tmpfile = tmpfile->duplicates;
         continue;
 
@@ -122,7 +148,9 @@ error_still_linked:
     files = files->next;
   }
 
-  if (processed == 0) printf("%s", s_no_dupes);
+  if (processed == 0) printf("No hard-linked file sets found.\n");
 
   return;
 }
+
+#endif /* NO_HARDLINKS */
