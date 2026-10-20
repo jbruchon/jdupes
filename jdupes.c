@@ -187,6 +187,7 @@ int main(int argc, char **argv)
   int64_t hdbsize;
   uint64_t hdbout;
   int hdbret;
+  int cleanup_the_hashdb = 0;
 #endif
 
 #ifndef NO_GETOPT_LONG
@@ -338,6 +339,12 @@ int main(int argc, char **argv)
 #endif /* ENABLE_DEDUPE */
 #ifndef NO_HASHDB
     case 'b':
+      if (jc_strcaseeq(optarg, "cleanup") == 0) {
+        cleanup_the_hashdb = 1;
+      } else {
+        fprintf(stderr, "invalid value for --hash-db-opts: '%s'\n", optarg);
+        exit(EXIT_FAILURE);
+      }
       break;
 #endif /* NO_HASHDB */
 #ifndef NO_CHUNKSIZE
@@ -678,6 +685,16 @@ skip_partialonly_noise:
     hdbsize = load_hash_database(hashdb_name);
     if (hdbsize < 0) goto error_load_hashdb;
     if (hdbsize > 0 && !ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "%" PRId64 " entries loaded.\n", hdbsize);
+    if (cleanup_the_hashdb == 1) {
+      uint64_t cleaned_count = 0;
+      cleanup_the_hashdb = 0;
+      if (cleanup_hashdb(&cleaned_count, NULL) != 0)
+        fprintf(stderr, "warning: an error occurred during hashdb cleanup\n");
+      if (cleaned_count > 0 && !ISFLAG(flags, F_HIDEPROGRESS))
+        fprintf(stderr, "Cleaned out %" PRIu64 " stale or modified entries from hash database.\n", cleaned_count);
+    }
+  } else {
+    if (cleanup_the_hashdb == 1) goto error_hashdb_cleanup;
   }
 #endif /* NO_HASHDB */
 
@@ -948,6 +965,9 @@ error_load_hashdb:
 error_hashdb_populate:
   fprintf(stderr, "error: -Y/--hash-db-populate requires the -y/--hash-db option\n");
   exit(EXIT_FAILURE);
+error_hashdb_cleanup:
+  fprintf(stderr, "warning: hashdb cleanup requested but no hashdb in use (missing -y)\n");
+  exit_status = EXIT_FAILURE;
 #endif
 interrupt_exit:
 #ifdef ON_WINDOWS

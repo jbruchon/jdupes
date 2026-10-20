@@ -588,50 +588,96 @@ error_path_hash:
 }
 
 
+static int compare_hashdb_nodes(const void *a, const void *b)
+{
+  const hashdb_t *node_a = *(hashdb_t * const *)a;
+  const hashdb_t *node_b = *(hashdb_t * const *)b;
+  return strcmp(node_a->path, node_b->path);
+}
+
+
 int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
 {
   int err = 0;
-  static char **list;
-  static uint64_t listsize;
-  char *temp;
-  unsigned int i;
+  static hashdb_t **list = NULL;
+  static uint64_t listsize = 0;
+  uint64_t i;
+  struct JC_STAT st;
 
-  /* First call: traverse array, sort results, do actual verification */
+  /* First call: traverse array, collect nodes, sort, and verify */
   if (unlikely(cur == NULL)) {
+    if (unlikely(hashdb_init == 0)) {
+      *cnt = 0;
+      return 0;
+    }
     list = NULL;
     listsize = 0;
     *cnt = 0;
 
+    /* Collect all active nodes into the pointer list */
     for (i = 0; i < HT_SIZE; i++) {
       if (hashdb[i] == NULL) continue;
       err = cleanup_hashdb(cnt, hashdb[i]);
-      if (err != 0) return err;
+      if (err != 0) {
+        free(list);
+        list = NULL;
+        return err;
+      }
     }
 
-    /* TODO: sort list first */
-
-    /* Check each item for existence; remove if it can't be accessed */
-    for (i = 0; i < *cnt; i++) {
-      char *path = *(list + i);
-      if (jc_access(path, JC_F_OK) == 0) continue;
-      /* TODO: invalidate entry - maybe need pointer? */
+    if (*cnt == 0) {
+      free(list);
+      list = NULL;
+      return 0;
     }
 
+    /* Sort the node pointers alphabetically by path (mirrors shell script sort) */
+    qsort(list, (size_t)*cnt, sizeof(hashdb_t *), compare_hashdb_nodes);
+
+    /* Check each item in sorted order for existence and metadata changes */
+    {
+      uint64_t cleaned = 0;
+      for (i = 0; i < *cnt; i++) {
+        hashdb_t *node = list[i];
+        int invalid = 0;
+
+        if (jc_stat(node->path, &st) != 0) {
+          invalid = 1;
+          LOUD(fprintf(stderr, "cleanup_hashdb: file missing '%s'\n", node->path);)
+        } else {
+          if (st.st_mtime != node->mtime) invalid = 1;
+          else if (!ISFLAG(flags, F_HASHDB_IGNORE_INODES) && st.st_ino != node->inode) invalid = 1;
+          else if (st.st_size != node->size) invalid = 1;
+        }
+
+        if (invalid) {
+          LOUD(fprintf(stderr, "cleanup_hashdb: invalidated: %s\n", node->path);)
+          node->hashcount = 0;
+          node->mtime = -1;
+          hashdb_dirty = 1;
+          cleaned++;
+        }
+      }
+      *cnt = cleaned;
+      LOUD(fprintf(stderr, "cleanup_hashdb: scanned " PRIu64 ", removed" PRIu64 "\n", i, cleaned);)
+    }
+
+    free(list);
+    list = NULL;
     return 0;
   }
 
-  /* If node is valid, add file to list to be checked, expanding array as needed */
-  if (cur->hashcount != 0) {
+  /* Recursive tree traversal helper: collect valid nodes */
+  if (cur->hashcount != 0 && cur->mtime != -1 && cur->path != NULL) {
     if (listsize == *cnt) {
+      hashdb_t **new_list;
       listsize += 4096;
-      list = realloc(list, sizeof(char *) * listsize);
-      if (list == NULL) jc_oom("cleanup_hashdb realloc");
+      new_list = realloc(list, sizeof(hashdb_t *) * (size_t)listsize);
+      if (new_list == NULL) jc_oom("cleanup_hashdb realloc");
+      list = new_list;
     }
-    temp = (char *)malloc(strlen(cur->path) + 1);
-    if (temp == NULL) jc_oom("cleanup_hashdb path");
-    *(list + *cnt) = temp;
-    strcpy(temp, cur->path);
-    (void)*cnt++;
+    *(list + *cnt) = cur;
+    (*cnt)++;
   }
 
   /* Traverse the tree, propagating errors */
