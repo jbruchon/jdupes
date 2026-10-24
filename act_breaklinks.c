@@ -128,7 +128,7 @@ void breaklinks(file_t * restrict files)
             SETFLAG(tmpfile->flags, hashflags);
             tmpfile->filehash_partial = srcfile->filehash_partial;
             tmpfile->filehash = srcfile->filehash;
-            add_hashdb_entry(NULL, 0, tmpfile, 1);
+            add_hashdb_entry(NULL, 0, tmpfile, 1, 1);
 	  }
 	}
 #endif

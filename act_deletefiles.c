@@ -224,9 +224,10 @@ stop_scanning:
           } else if (jc_remove(dupelist[x]->d_name) == 0) {
             printf("   [-] "); jc_fwprint(stdout, dupelist[x]->d_name, 1);
 #ifndef NO_HASHDB
+            /* Erase hash database entry for the deleted file */
             if (ISFLAG(flags, F_HASHDB)) {
               dupelist[x]->mtime = -1;
-              add_hashdb_entry(NULL, 0, dupelist[x], 0);
+              add_hashdb_entry(NULL, 0, dupelist[x], 0, 0);
           }
 #endif
           } else {

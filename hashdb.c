@@ -74,7 +74,7 @@ void add_file_to_hashdb(file_t *file)
 {
   if (ISFLAG(file->flags, FF_HASHDB_DIRTY)) {
     CLEARFLAG(file->flags, FF_HASHDB_DIRTY);
-    add_hashdb_entry(NULL, 0, file, 0);
+    add_hashdb_entry(NULL, 0, file, 0, 1);
   }
   return;
 }
@@ -290,7 +290,7 @@ static void rebalance_hashdb_tree(hashdb_t **parent)
 
 
 /* in_path allows use of a precomputed path length to avoid extra strlen() calls */
-hashdb_t *add_hashdb_entry(char *in_path, int pathlen, const file_t *check, int update)
+hashdb_t *add_hashdb_entry(char *in_path, int pathlen, const file_t *check, int update, const int check_chars)
 {
   unsigned int bucket;
   hashdb_t *file;
@@ -314,6 +314,17 @@ hashdb_t *add_hashdb_entry(char *in_path, int pathlen, const file_t *check, int 
     pathlen = check->d_name_len;
   } else path = in_path;
   if (pathlen == 0) pathlen = strlen(path);
+
+  /* Newlines/colons are separators in hashdb; reject files with offending chars */
+  if (check_chars) {
+    if (memchr(path, '\n', pathlen) != NULL ||
+        memchr(path, '\r', pathlen) != NULL ||
+        memchr(path, ':', pathlen) != NULL) {
+      fprintf(stderr, "warning: not storing file with newline or colon in hashdb: '%s'\n", path);
+      return NULL;
+    }
+  }
+
   if (get_path_hash(path, pathlen, &path_hash) != 0) return NULL;
   bucket = path_hash & HT_MASK;
 
@@ -502,7 +513,7 @@ int64_t load_hash_database(const char * const restrict dbname)
     *(cleanpath + pathlen) = '\0';
 
     /* Allocate and populate a tree entry */
-    entry = add_hashdb_entry(cleanpath, pathlen, NULL, 0);
+    entry = add_hashdb_entry(cleanpath, pathlen, NULL, 0, 0);
     if (entry == NULL) goto error_hashdb_add;
     memcpy(entry->path, cleanpath, pathlen + 1);
     entry->mtime = mtime;

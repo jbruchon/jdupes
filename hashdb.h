@@ -29,12 +29,12 @@ typedef struct _hashdb {
 
 void set_hashdb_backup_name(const char *name);
 void add_file_to_hashdb(file_t *file);
-extern int save_hash_database(const char * const restrict dbname, uint64_t * const restrict entries, const int destroy);
-extern hashdb_t *add_hashdb_entry(char *in_path, const int in_pathlen, const file_t *check, int update);
-extern int64_t load_hash_database(const char * const restrict dbname);
-extern int read_hashdb_entry(file_t *file);
-extern uint64_t dump_hashdb(void);
-extern int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur);
+int save_hash_database(const char * const restrict dbname, uint64_t * const restrict entries, const int destroy);
+hashdb_t *add_hashdb_entry(char *in_path, int pathlen, const file_t *check, int update, const int check_chars);
+int64_t load_hash_database(const char * const restrict dbname);
+int read_hashdb_entry(file_t *file);
+uint64_t dump_hashdb(void);
+int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur);
 
 #ifdef __cplusplus
 }

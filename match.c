@@ -66,8 +66,8 @@ static void cross_copy_hashes(file_t *file1, file_t *file2)
   /* Add to hash database */
 #ifndef NO_HASHDB
   if (ISFLAG(flags, F_HASHDB)) {
-    if (dirty1 == 1) add_hashdb_entry(NULL, 0, file1, 0);
-    if (dirty2 == 1) add_hashdb_entry(NULL, 0, file2, 0);
+    if (dirty1 == 1) add_hashdb_entry(NULL, 0, file1, 0, 1);
+    if (dirty2 == 1) add_hashdb_entry(NULL, 0, file2, 0, 1);
  }
 #endif
 
