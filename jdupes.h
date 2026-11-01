@@ -176,7 +176,7 @@ extern uint64_t h_flags;
 /* hashdb-specific flags */
 #define FH_CLEANUP		(1U << 0)
 #define FH_RECONNECT		(1U << 1)
-#define FH_IGNORE_INODES	(1U << 1)
+#define FH_IGNORE_INODES	(1U << 2)
 
 /* Extra print flags */
 #define PF_PARTIAL		(1U << 0)
