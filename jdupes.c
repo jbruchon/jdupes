@@ -83,6 +83,9 @@
 
 /* Behavior modification flags (a=action, p=-P) */
 uint_fast64_t flags = 0, a_flags = 0, p_flags = 0;
+#ifndef NO_HASHDB
+uint64_t h_flags = 0;
+#endif
 
 static const char *program_name;
 
@@ -187,7 +190,6 @@ int main(int argc, char **argv)
   int64_t hdbsize;
   uint64_t hdbout;
   int hdbret;
-  int cleanup_the_hashdb = 0;
 #endif
 
 #ifndef NO_GETOPT_LONG
@@ -341,7 +343,7 @@ int main(int argc, char **argv)
     case 'b':
       if (jc_strcaseeq(optarg, s_help) == 0) { help_text_hashdb_opts(); exit(EXIT_SUCCESS); }
       if (jc_strcaseeq(optarg, "cleanup") == 0) {
-        cleanup_the_hashdb = 1;
+        SETFLAG(h_flags, FH_CLEANUP);
       } else if (jc_strncaseeq(optarg, "backup", 6) == 0) {
         if (*(optarg + 6) != '=' || *(optarg + 7) == '\0') {
           fprintf(stderr, "error: --hash-db-opts backup requires a filename argument\n");
@@ -692,16 +694,18 @@ skip_partialonly_noise:
     hdbsize = load_hash_database(hashdb_name);
     if (hdbsize < 0) goto error_load_hashdb;
     if (hdbsize > 0 && !ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "%" PRId64 " entries loaded.\n", hdbsize);
-    if (cleanup_the_hashdb == 1) {
+    if (ISFLAG(h_flags, FH_CLEANUP)) {
       uint64_t cleaned_count = 0;
-      cleanup_the_hashdb = 0;
+      CLEARFLAG(h_flags, FH_CLEANUP);
+      if (!ISFLAG(flags, F_HIDEPROGRESS))
+        fprintf(stderr, "Performing hashdb cleanup (this may take a long time)\n");
       if (cleanup_hashdb(&cleaned_count, NULL) != 0)
         fprintf(stderr, "warning: an error occurred during hashdb cleanup\n");
-      if (cleaned_count > 0 && !ISFLAG(flags, F_HIDEPROGRESS))
+      if (!ISFLAG(flags, F_HIDEPROGRESS))
         fprintf(stderr, "Cleaned out %" PRIu64 " stale or modified entries from hash database.\n", cleaned_count);
     }
   } else {
-    if (cleanup_the_hashdb == 1) goto error_hashdb_cleanup;
+    if (ISFLAG(h_flags, FH_CLEANUP)) goto error_hashdb_cleanup;
   }
 #endif /* NO_HASHDB */
 

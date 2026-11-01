@@ -343,7 +343,7 @@ hashdb_t *add_hashdb_entry(char *in_path, int pathlen, const file_t *check, int 
           /* Should we invalidate this entry? */
           exclude = update << 4;
           if (cur->mtime != check->mtime) exclude |= 1;
-          if (!ISFLAG(flags, F_HASHDB_IGNORE_INODES) && cur->inode != check->inode) exclude |= 2;
+          if (!ISFLAG(flags, FH_IGNORE_INODES) && cur->inode != check->inode) exclude |= 2;
           if (cur->size != check->size)  exclude |= 4;
           if (exclude == 0) {
             if (cur->hashcount == 1 && ISFLAG(check->flags, FF_HASH_FULL)) {
@@ -701,7 +701,7 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
           LOUD(fprintf(stderr, "cleanup_hashdb: file missing '%s'\n", node->path);)
         } else {
           if (st.st_mtime != node->mtime) invalid = 1;
-          else if (!ISFLAG(flags, F_HASHDB_IGNORE_INODES) && st.st_ino != node->inode) invalid = 1;
+          else if (!ISFLAG(flags, FH_IGNORE_INODES) && st.st_ino != node->inode) invalid = 1;
           else if (st.st_size != node->size) invalid = 1;
         }
 

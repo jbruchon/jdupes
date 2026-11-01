@@ -119,6 +119,9 @@ extern uintmax_t comparisons;
 
 /* Behavior modification flags */
 extern uint64_t flags, a_flags, p_flags;
+#ifndef NO_HASHDB
+extern uint64_t h_flags;
+#endif
 #define F_RECURSE		(1ULL << 0)
 #define F_HIDEPROGRESS		(1ULL << 1)
 #define F_SOFTABORT		(1ULL << 2)
@@ -142,7 +145,6 @@ extern uint64_t flags, a_flags, p_flags;
 #define F_BENCHMARKSTOP		(1ULL << 29)
 #define F_HASHDB		(1ULL << 30)
 #define F_HASHDB_POPULATE	(1ULL << 31)
-#define F_HASHDB_IGNORE_INODES	(1ULL << 32)
 
 #define F_LOUD			(1ULL << 62)
 #define F_DEBUG			(1ULL << 63)
@@ -170,6 +172,11 @@ extern uint64_t flags, a_flags, p_flags;
 #define FF_IS_SYMLINK		(1U << 4)
 #define FF_NOT_UNIQUE		(1U << 5)
 #define FF_HASHDB_DIRTY		(1U << 6)
+
+/* hashdb-specific flags */
+#define FH_CLEANUP		(1U << 0)
+#define FH_RECONNECT		(1U << 1)
+#define FH_IGNORE_INODES	(1U << 1)
 
 /* Extra print flags */
 #define PF_PARTIAL		(1U << 0)
