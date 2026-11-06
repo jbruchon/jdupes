@@ -666,7 +666,6 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
       return 0;
     }
 
-    /* On Windows 7+, activate the progress bar */
 #ifdef ON_WINDOWS
     set_taskbar_spinning_progress();
 #endif
@@ -756,6 +755,9 @@ cleanup_return:
   free(list);
   list = NULL;
   if (!ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "\n");
+#ifdef ON_WINDOWS
+    set_taskbar_spinning_progress();
+#endif
   return err;
 }
 

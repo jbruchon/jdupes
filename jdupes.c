@@ -703,6 +703,7 @@ skip_partialonly_noise:
         fprintf(stderr, "warning: an error occurred during hashdb cleanup\n");
       if (!ISFLAG(flags, F_HIDEPROGRESS))
         fprintf(stderr, "Cleaned out %" PRIu64 " stale or modified entries from hash database.\n", cleaned_count);
+      if (unlikely(interrupt)) goto interrupt_exit;
     }
   } else {
     if (ISFLAG(h_flags, FH_CLEANUP)) goto error_hashdb_cleanup;
