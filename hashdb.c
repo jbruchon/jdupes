@@ -656,7 +656,7 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
   int err = 0;
   static hashdb_t **list = NULL;
   static uint64_t listsize = 0;
-  uint64_t i;
+  uint64_t i, nodes = 0;
   struct JC_STAT st;
 
   /* First call: traverse array, collect nodes, sort, and verify */
@@ -673,18 +673,11 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
     for (i = 0; i < HT_SIZE; i++) {
       if (hashdb[i] == NULL) continue;
       err = cleanup_hashdb(cnt, hashdb[i]);
-      if (err != 0) {
-        free(list);
-        list = NULL;
-        return err;
-      }
+      if (err != 0) goto cleanup_return;
     }
 
-    if (*cnt == 0) {
-      free(list);
-      list = NULL;
-      return 0;
-    }
+    err = 0;
+    if (*cnt == 0) goto cleanup_return;
 
     /* Sort the node pointers alphabetically by path (mirrors shell script sort) */
     qsort(list, (size_t)*cnt, sizeof(hashdb_t *), compare_hashdb_nodes);
@@ -717,9 +710,7 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
       LOUD(fprintf(stderr, "cleanup_hashdb: scanned %" PRIu64 ", removed %" PRIu64 "\n", i, cleaned);)
     }
 
-    free(list);
-    list = NULL;
-    return 0;
+    goto cleanup_return;
   }
 
   /* Recursive tree traversal helper: collect valid nodes */
@@ -738,6 +729,11 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
   /* Traverse the tree, propagating errors */
   if (err == 0 && cur->left != NULL) err = cleanup_hashdb(cnt, cur->left);
   if (err == 0 && cur->right != NULL) err = cleanup_hashdb(cnt, cur->right);
+  return err;
+
+cleanup_return:
+  free(list);
+  list = NULL;
   return err;
 }
 
