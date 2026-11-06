@@ -177,9 +177,7 @@ void loaddir(char *startdir, file_t * restrict * const restrict filelistp, int r
 
   if (unlikely(interrupt != 0)) return;
 
-fprintf(stderr, "CHECKPOINT [pre] : '%s'\n", startdir);
   startdir = remove_leading_dotslashes(startdir);
-fprintf(stderr, "CHECKPOINT [rlds]: '%s'\n", startdir);
   /* Convert forward slashes to backslashes if on Windows */
   jc_slash_convert(startdir);
 
@@ -194,7 +192,6 @@ fprintf(stderr, "CHECKPOINT [rlds]: '%s'\n", startdir);
 while (pop_dirqueue(&dq) == 0) {
 
   /* Get directory stats (or file stats if it's a file) */
-fprintf(stderr, "loaddir: processing '%s'\n", dq.d_name);
   i = getdirstats(dq.d_name, &inode, &device, &mode);
   if (unlikely(i < 0)) goto error_stat_dir;
 

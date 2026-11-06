@@ -13,9 +13,11 @@
 #include <sys/time.h>
 #include <time.h>
 #include "jdupes.h"
+#include "interrupt.h"
 #include "loaddir.h"
 #include "libjodycode.h"
 #include "likely_unlikely.h"
+#include "progress.h"
 #include "hashdb.h"
 
 #define HASHDB_VER 2
@@ -315,11 +317,9 @@ hashdb_t *add_hashdb_entry(char *in_path, int pathlen, const file_t *check, int 
   } else path = in_path;
   if (pathlen == 0) pathlen = strlen(path);
 
-  /* Newlines/colons are separators in hashdb; reject files with offending chars */
+  /* Newlines are separators in hashdb; reject files with offending chars */
   if (check_chars) {
-    if (memchr(path, '\n', pathlen) != NULL ||
-        memchr(path, '\r', pathlen) != NULL ||
-        memchr(path, ':', pathlen) != NULL) {
+    if (memchr(path, '\n', pathlen) != NULL || memchr(path, '\r', pathlen) != NULL) {
       fprintf(stderr, "warning: not storing file with newline or colon in hashdb: '%s'\n", path);
       return NULL;
     }
@@ -656,7 +656,7 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
   int err = 0;
   static hashdb_t **list = NULL;
   static uint64_t listsize = 0;
-  uint64_t i, nodes = 0;
+  uint64_t i, cleaned = 0;
   struct JC_STAT st;
 
   /* First call: traverse array, collect nodes, sort, and verify */
@@ -665,6 +665,12 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
       *cnt = 0;
       return 0;
     }
+
+    /* On Windows 7+, activate the progress bar */
+#ifdef ON_WINDOWS
+    set_taskbar_spinning_progress();
+#endif
+
     list = NULL;
     listsize = 0;
     *cnt = 0;
@@ -682,34 +688,47 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
     /* Sort the node pointers alphabetically by path (mirrors shell script sort) */
     qsort(list, (size_t)*cnt, sizeof(hashdb_t *), compare_hashdb_nodes);
 
+    /* Progress indicator every second, shamelessly stolen from jdupes.c */
+    if (!ISFLAG(flags, F_HIDEPROGRESS)) {
+      jc_start_alarm(1, 1);
+      /* Force an immediate progress update */
+      jc_alarm_ring = 1;
+    } else jc_alarm_ring = 0;  /* Silence all progress indication */
+
     /* Check each item in sorted order for existence and metadata changes */
-    {
-      uint64_t cleaned = 0;
-      for (i = 0; i < *cnt; i++) {
-        hashdb_t *node = list[i];
-        int invalid = 0;
+    for (i = 0; i < *cnt; i++) {
+      hashdb_t *node = list[i];
+      int invalid = 0;
 
-        if (jc_stat(node->path, &st) != 0) {
-          invalid = 1;
-          LOUD(fprintf(stderr, "cleanup_hashdb: file missing '%s'\n", node->path);)
-        } else {
-          if (st.st_mtime != node->mtime) invalid = 1;
-          else if (!ISFLAG(flags, FH_IGNORE_INODES) && st.st_ino != node->inode) invalid = 1;
-          else if (st.st_size != node->size) invalid = 1;
-        }
-
-        if (invalid) {
-          LOUD(fprintf(stderr, "cleanup_hashdb: invalidated: %s\n", node->path);)
-          node->hashcount = 0;
-          node->mtime = -1;
-          hashdb_dirty = 1;
-          cleaned++;
-        }
+      /* Progress indicator and CTRL-C interrupt */
+      if (jc_alarm_ring != 0) {
+        jc_alarm_ring = 0;
+        update_hdbclean_progress(i, *cnt, cleaned);
       }
-      *cnt = cleaned;
-      LOUD(fprintf(stderr, "cleanup_hashdb: scanned %" PRIu64 ", removed %" PRIu64 "\n", i, cleaned);)
-    }
+      if (unlikely(interrupt)) goto interrupt_return;
 
+      if (jc_stat(node->path, &st) != 0) {
+        invalid = 1;
+        LOUD(fprintf(stderr, "cleanup_hashdb: file missing '%s'\n", node->path);)
+      } else {
+        if (st.st_mtime != node->mtime) invalid = 1;
+        else if (!ISFLAG(flags, FH_IGNORE_INODES) && st.st_ino != node->inode) invalid = 1;
+        else if (st.st_size != node->size) invalid = 1;
+      }
+
+      if (invalid) {
+        LOUD(fprintf(stderr, "cleanup_hashdb: invalidated: %s\n", node->path);)
+        node->hashcount = 0;
+        node->mtime = -1;
+        hashdb_dirty = 1;
+        cleaned++;
+      }
+    }
+    LOUD(fprintf(stderr, "cleanup_hashdb: scanned %" PRIu64 ", removed %" PRIu64 "\n", i, cleaned);)
+
+    if (!ISFLAG(flags, F_HIDEPROGRESS)) jc_stop_alarm();
+    update_hdbclean_progress(i, *cnt, cleaned);
+    *cnt = cleaned;
     goto cleanup_return;
   }
 
@@ -731,9 +750,12 @@ int cleanup_hashdb(uint64_t *cnt, hashdb_t *cur)
   if (err == 0 && cur->right != NULL) err = cleanup_hashdb(cnt, cur->right);
   return err;
 
+interrupt_return:
+  err = 255;
 cleanup_return:
   free(list);
   list = NULL;
+  if (!ISFLAG(flags, F_HIDEPROGRESS)) fprintf(stderr, "\n");
   return err;
 }
 

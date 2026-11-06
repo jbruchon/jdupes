@@ -70,7 +70,6 @@ void update_phase1_progress(const char * const restrict type)
 {
   fprintf(stderr, "\rScanning: %" PRIuMAX " files, %" PRIuMAX " %s (in %u specified)",
           progress, item_progress, type, user_item_count);
-//  fflush(stderr);
 }
 
 
@@ -80,6 +79,7 @@ void update_phase2_progress(const char * const restrict msg, const int file_perc
   static int did_fpct = 0;
   static uintmax_t percent;
 
+  if (filecount == 0) return;
   percent = (progress * 100) / filecount;
   fprintf(stderr, "\rProgress [%" PRIuMAX "/%" PRIuMAX ", %" PRIuMAX " pairs matched] %" PRIuMAX "%%",
     progress, filecount, dupecount, percent);
@@ -93,6 +93,23 @@ void update_phase2_progress(const char * const restrict msg, const int file_perc
 #ifdef ON_WINDOWS
   update_taskbar_progress(progress, filecount);
 #endif
-//  fflush(stderr);
   return;
 }
+
+
+#ifndef NO_HASHDB
+/* Update progress indicator for hashdb cleanup */
+void update_hdbclean_progress(uint64_t cur, uint64_t total, uint64_t cleaned)
+{
+  static uintmax_t percent;
+
+  if (total == 0) return;
+  percent = (cur * 100) / total;
+  fprintf(stderr, "\rhashdb cleaning: %" PRIuMAX "/%" PRIuMAX ", %" PRIuMAX " cleaned, %" PRIuMAX "%%",
+      cur, total, cleaned, percent);
+#ifdef ON_WINDOWS
+  update_taskbar_progress(cur, total);
+#endif
+  return;
+}
+#endif  /* NO_HASHDB */
