@@ -165,8 +165,7 @@ void loaddir(char *startdir, file_t * restrict * const restrict filelistp, int r
   struct dq_entry dq;
   struct JC_DIRENT *dirinfo;
   size_t dirpos;
-//  int i, single = 0, dotdir = 0;
-  int i, dotdir = 0;
+  int i;
   jdupes_ino_t inode;
   dev_t device, n_device;
   jdupes_mode_t mode;
@@ -178,8 +177,9 @@ void loaddir(char *startdir, file_t * restrict * const restrict filelistp, int r
 
   if (unlikely(interrupt != 0)) return;
 
+fprintf(stderr, "CHECKPOINT [pre] : '%s'\n", startdir);
   startdir = remove_leading_dotslashes(startdir);
-  if (*startdir == '.' && *(startdir + 1) == '\0') dotdir = 1;
+fprintf(stderr, "CHECKPOINT [rlds]: '%s'\n", startdir);
   /* Convert forward slashes to backslashes if on Windows */
   jc_slash_convert(startdir);
 
@@ -194,7 +194,7 @@ void loaddir(char *startdir, file_t * restrict * const restrict filelistp, int r
 while (pop_dirqueue(&dq) == 0) {
 
   /* Get directory stats (or file stats if it's a file) */
-//fprintf(stderr, "loaddir: processing '%s', dotdir = %d\n", dq.d_name, dotdir);
+fprintf(stderr, "loaddir: processing '%s'\n", dq.d_name);
   i = getdirstats(dq.d_name, &inode, &device, &mode);
   if (unlikely(i < 0)) goto error_stat_dir;
 
@@ -250,7 +250,6 @@ while (pop_dirqueue(&dq) == 0) {
     size_t d_name_len;
 
     if (unlikely(interrupt != 0)) return;
-//fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name);
     LOUD(fprintf(stderr, "loaddir: readdir: '%s'\n", dirinfo->d_name));
     if (unlikely(!jc_streq(dirinfo->d_name, ".") || !jc_streq(dirinfo->d_name, ".."))) continue;
     check_sigusr1();
@@ -263,34 +262,29 @@ while (pop_dirqueue(&dq) == 0) {
     d_name_len = jc_get_d_namlen(dirinfo);
     dirpos = 0;
     /* Avoid prefixing '.\' if the dir spec is effectively '.' */
-//fprintf(stderr, "CHECKPOINT: dq.d_name = '%s', dq.d_name_len = '%d'\n", dq.d_name, dq.d_name_len);
-    if (likely(dotdir == 0)) {
+    /* Avoid prefixing if the directory is just '.' */
+    if (unlikely(dq.d_name_len == 1 && dq.d_name[0] == '.')) {
+      dirpos = 0;
+    } else {
       dirpos = dq.d_name_len;
       memcpy(tp, dq.d_name, dirpos + 1);
-//fprintf(stderr, "CHECKPOINT[dd]: tp = '%s'\n", tp);
       if (dirpos != 0 && tp[dirpos - 1] != dir_sep) {
         tp[dirpos] = dir_sep;
         dirpos++;
       }
-//fprintf(stderr, "CHECKPOINT[dd]: tp = '%s', dirpos = %llu\n", tp, dirpos);
       if (unlikely(dirpos + d_name_len + 1 >= (JC_PATHBUF_SIZE * 2))) goto error_overflow;
       tp += dirpos;
     }
-    dotdir = 0;  /* Only use dot-dir for a starting directory, never for subdirs */
-//fprintf(stderr, "CHECKPOINT: tp = '%s', dirpos = %llu\n", tp, dirpos);
     memcpy(tp, dirinfo->d_name, d_name_len);
     tp += d_name_len;
     *tp = '\0';
     d_name_len += dirpos;
-//fprintf(stderr, "CHECKPOINT: tp = '%s'\n", tp);
 
     /* Allocate the file_t and the d_name entries */
     newfile = init_newfile(d_name_len, filelistp);
 
     tp = tempname;
-//fprintf(stderr, "CHECKPOINT: tp = '%s', tempname = '%s', newfile->d_name = '%s'\n", tp, tempname, newfile->d_name);
     memcpy(newfile->d_name, tp, d_name_len + 1);
-//fprintf(stderr, "CHECKPOINT: tp = '%s', tempname = '%s', newfile->d_name = '%s'\n", tp, tempname, newfile->d_name);
 
     /*** WARNING: tempname global gets reused by check_singlefile here! ***/
 
