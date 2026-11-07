@@ -341,8 +341,10 @@ int main(int argc, char **argv)
 #endif /* ENABLE_DEDUPE */
 #ifndef NO_HASHDB
     case 'b':
-      if (jc_strcaseeq(optarg, s_help) == 0) { help_text_hashdb_opts(); exit(EXIT_SUCCESS); }
-      if (jc_strcaseeq(optarg, "cleanup") == 0) {
+      if (jc_strcaseeq(optarg, s_help) == 0) {
+        help_text_hashdb_opts();
+        exit(EXIT_SUCCESS);
+      } else if (jc_strcaseeq(optarg, "cleanup") == 0) {
         SETFLAG(h_flags, FH_CLEANUP);
       } else if (jc_strncaseeq(optarg, "backup", 6) == 0) {
         if (*(optarg + 6) != '=' || *(optarg + 7) == '\0') {
@@ -350,6 +352,8 @@ int main(int argc, char **argv)
           exit(EXIT_FAILURE);
         }
         set_hashdb_backup_name(optarg + 7);
+      } else if (jc_strcaseeq(optarg, "populate") == 0) {
+        SETFLAG(flags, F_HASHDB_POPULATE);
       } else {
         fprintf(stderr, "invalid value for --hash-db-opts: '%s'\n", optarg);
         exit(EXIT_FAILURE);
@@ -560,6 +564,7 @@ int main(int argc, char **argv)
       else strcpy(hashdb_name, optarg);
       break;
     case 'Y':
+      fprintf(stderr, "warning: -Y/--hash-db-populate will be removed; use -b populate instead\n");
       SETFLAG(flags, F_HASHDB_POPULATE);
       break;
 #endif /* NO_HASHDB */
@@ -791,7 +796,7 @@ skip_partialonly_noise:
 
     LOUD(fprintf(stderr, "\nMAIN: current file: %s\n", curfile->d_name));
 
-    /* If -Y passed, populate the hash database with this file and do nothing else */
+    /* If -b populate passed, populate the hash database with this file and do nothing else */
 #ifndef NO_HASHDB
     if (unlikely(ISFLAG(flags, F_HASHDB_POPULATE))) {
       const uint64_t * restrict pop_filehash;
@@ -976,7 +981,7 @@ error_load_hashdb:
   free(hashdb_name);
   exit(EXIT_FAILURE);
 error_hashdb_populate:
-  fprintf(stderr, "error: -Y/--hash-db-populate requires the -y/--hash-db option\n");
+  fprintf(stderr, "error: -b populate requires the -y/--hash-db option\n");
   exit(EXIT_FAILURE);
 error_hashdb_cleanup:
   fprintf(stderr, "warning: hashdb cleanup requested but no hashdb in use (missing -y)\n");

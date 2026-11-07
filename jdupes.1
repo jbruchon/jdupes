@@ -36,7 +36,7 @@ do not match files that are on different filesystems or devices
 exclude hidden files from consideration
 .TP
 .B  -b --hash-db-opts=opt
-hash database options and operations; general format:
+hash database options/operations (all require -y); general format:
 
 .B jdupes -b option[[:|=]option_modifiers]
 
@@ -48,7 +48,9 @@ a destructive cleanup that can significantly reduce the size of the
 database after large deletions. Changes are written on program exit.
 .IP `backup=backup_hashdb_name'
 if a new hashdb is written, rename the old hashdb to given backup_hashdb_name
-Using backup=. will set the backup database name to 'jdupes_hashdb_old.txt'
+Using backup=. will set the backup database name to 'jdupes_hashdb_old.txt'.
+.IP populate
+Don't duplicate scan, only pre-populate the hashdb with complete hash data.
 .RE
 
 .TP
@@ -60,7 +62,7 @@ was used with -m crc=1,reflink=1; Apple APFS)
 .TP
 .B -C --chunk-size=\fIsize-number\fR
 override I/O chunk size; jdupes tunes this automatically but if you have large
-files on mechanical hard drives, large chunks may reduce seek time penalties
+files on mechanical hard drives, large chunks may reduce seek time penalties.
 
 Valid values are 0-18 and represent sizes in powers of two:
 0=4K, 1=8K, 2=16K, 3=32K, 4=64K, 5=128K  6=256K  7=512K, 8=1M, 9=2M, 10=4M, 
@@ -177,10 +179,6 @@ display jdupes version and compilation feature flags
 .B -y --hash-db=file
 create/use a hash database text file to speed up future runs by
 caching file hash data
-.TP
-.B -Y --hash-db-populate
-don't duplicate scan, only force-populate partial and full hashes in the
-hash database for all specified files and exit (requires -y)
 .TP
 .B -X --ext-filter=spec:info
 exclude/filter files based on specified criteria; general format:

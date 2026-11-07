@@ -196,7 +196,6 @@ void help_text(void)
 #ifndef NO_HASHDB
   printf(" -y --hash-db=file\tuse a hash database text file to speed up repeat runs\n");
   printf("                  \tPassing '-y .' will expand to  '-y jdupes_hashdb.txt'\n");
-  printf(" -Y --hash-db-populate\tforce-populate the hash database (no dupe scan)\n");
 #endif /* NO_HASHDB */
   printf(" -z --zero-match  \tconsider zero-length files to be duplicates\n");
   printf(" -Z --soft-abort  \tIf the user aborts (i.e. CTRL-C) act on matches so far\n");
@@ -350,6 +349,7 @@ void help_text_hashdb_opts(void)
 {
 #ifndef NO_HELPTEXT
   printf("\nDetailed help for jdupes -b/--hash-db-opts options\n");
+  printf("Note that -y/--hash-db is required for these to have any effect!\n");
   printf("General format: jdupes -b option[[:|=]option_modifiers]\n\n");
 
   printf("cleanup\n");
@@ -360,8 +360,13 @@ void help_text_hashdb_opts(void)
   printf("  database after large deletions. Changes are written on program exit.\n\n");
 
   printf("backup=backup_hashdb_name\n");
+  printf("\n");
   printf("  If a new hashdb is written, rename the old hashdb to given backup_hashdb_name\n");
-  printf("  Using backup=. will set the backup database name to 'jdupes_hashdb_old.txt'\n");
+  printf("  Using backup=. will set the backup database name to 'jdupes_hashdb_old.txt'\n\n");
+
+  printf("populate\n");
+  printf("\n");
+  printf("  Don't duplicate scan, only pre-populate the hashdb with complete hash data\n");
 #else /* NO_HELPTEXT */
   version_text(0);
 #endif /* NO_HELPTEXT */
