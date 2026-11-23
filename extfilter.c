@@ -129,7 +129,6 @@ void add_extfilter(const char *option)
   time_t tt;
   struct extfilter *extf = extfilter_head;
   const struct extfilter_tags *tags = extfilter_tags;
-  const struct jc_size_suffix *ss = jc_size_suffix;
 
   if (option == NULL) jc_nullptr("add_extfilter()");
 
@@ -177,15 +176,7 @@ void add_extfilter(const char *option)
   if (extf->flags & XF_REQ_NUMBER) {
     /* Exclude uses a number; handle it with possible suffixes */
     *(extf->param) = '\0';
-    /* Get base size */
-    if (*p < '0' || *p > '9') goto error_bad_size_suffix;
-    extf->size = strtoll(p, &p, 10);
-    /* Handle suffix, if any */
-    if (*p != '\0') {
-      while (ss->suffix != NULL && jc_strcaseeq(ss->suffix, p) != 0) ss++;
-      if (ss->suffix == NULL) goto error_bad_size_suffix;
-      extf->size *= ss->multiplier;
-    }
+    if (jc_sizestr_to_int64(p, &extf->size) != 0) goto error_bad_size_suffix;
   } else if (extf->flags & XF_REQ_DATE) {
     /* Exclude uses a date; convert it to seconds since the epoch */
     *(extf->param) = '\0';
