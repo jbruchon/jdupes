@@ -1,46 +1,50 @@
 #!/bin/sh
 
+[ "$1" = "-h" ] && echo "help: $0 [jdupes_binary_path] [test_directory_path]" >&2 && exit 0
+
 JD="$1"
+TD="$2"
 [ -z "$JD" ] && JD=./jdupes
 [ -z "$JOPT" ] && JOPT=-q
+[ -z "$TD" ] && TD=testdir
 
 [ ! -x "$JD" ] && echo "Build jdupes first, or supply a binary path on the command line" >&2 && exit 1
 
 FAIL=0
 
-TD_FULL_FILECNT=$(find testdir -type f | wc -l)
+TD_FULL_FILECNT=$(find "$TD" -type f | wc -l)
 if [ "$TD_FULL_FILECNT" -gt 0 ]; then
-	echo "testdirFullFileCnt: VALID"
+	echo "dirFullFileCnt: VALID"
 else
-	echo "testdirFullFileCnt: FAIL"
+	echo "dirFullFileCnt: FAIL"
 	FAIL=1
 fi
 
-TD_FILECNT=$(find testdir -type f -size +0 | wc -l)
-TD_ZERO_FILECNT=$(find testdir -type f -size 0 | wc -l)
+TD_FILECNT=$(find "$TD" -type f -size +0 | wc -l)
+TD_ZERO_FILECNT=$(find "$TD" -type f -size 0 | wc -l)
 if [ "$((TD_FILECNT + TD_ZERO_FILECNT))" -eq "$TD_FULL_FILECNT" ] && [ "$TD_FILECNT" -gt 0 ]; then
-	echo "testdirFileCnt: VALID"
+	echo "dirFileCnt: VALID"
 else
-	echo "testdirFileCnt: FAIL"
+	echo "dirFileCnt: FAIL"
 	FAIL=1
 fi
 
 if [ "$TD_ZERO_FILECNT" -gt 0 ]; then
-	echo "testdirZeroFileCnt: VALID"
+	echo "dirZeroFileCnt: VALID"
 else
-	echo "testdirZeroFileCnt: FAIL"
+	echo "dirZeroFileCnt: FAIL"
 	FAIL=1
 fi
 
-TD_64K_FILECNT=$(find testdir -type f -size +64k | wc -l)
+TD_64K_FILECNT=$(find "$TD" -type f -size +64k | wc -l)
 if [ "$TD_64K_FILECNT" -le "$TD_FILECNT" ]; then
-	echo "testdir64kFileCnt: VALID"
+	echo "dir64kFileCnt: VALID"
 else
-	echo "testdir64kFileCnt: FAIL"
+	echo "dir64kFileCnt: FAIL"
 	FAIL=1
 fi
 
-JD_NOOPTS_CNT=$("$JD" $JOPT testdir | grep testdir | wc -l)
+JD_NOOPTS_CNT=$("$JD" $JOPT "$TD" | grep "$TD" | wc -l)
 if [ "$JD_NOOPTS_CNT" -le "$TD_FILECNT" ]; then
 	echo "jdupesNoOpts: PASS"
 else
@@ -48,7 +52,7 @@ else
 	FAIL=1
 fi
 
-JD_R_CNT=$("$JD" $JOPT -r testdir | grep testdir | wc -l)
+JD_R_CNT=$("$JD" $JOPT -r "$TD" | grep "$TD" | wc -l)
 if [ "$JD_R_CNT" -ge "$JD_NOOPTS_CNT" ] && [ "$JD_R_CNT" -le "$TD_FILECNT" ]; then
 	echo "jdupesR: PASS"
 else
@@ -56,7 +60,7 @@ else
 	FAIL=1
 fi
 
-JD_RU_CNT=$("$JD" $JOPT -ru testdir | grep testdir | wc -l)
+JD_RU_CNT=$("$JD" $JOPT -ru "$TD" | grep "$TD" | wc -l)
 if [ "$((JD_R_CNT + JD_RU_CNT))" -eq "$TD_FILECNT" ]; then
 	echo "jdupesRu: PASS"
 else
@@ -64,7 +68,7 @@ else
 	FAIL=1
 fi
 
-JD_RZ_CNT=$("$JD" $JOPT -rz testdir | grep testdir | wc -l)
+JD_RZ_CNT=$("$JD" $JOPT -rz "$TD" | grep "$TD" | wc -l)
 if [ "$JD_RZ_CNT" -ge "$JD_R_CNT" ] && [ "$JD_RZ_CNT" -le "$TD_FULL_FILECNT" ]; then
 	echo "jdupesRz: PASS"
 else
@@ -81,14 +85,14 @@ else
 fi
 
 # Summary (-m) and combined print+summary (-M) output checks
-if "$JD" $JOPT -mr testdir | grep -Eq 'duplicate.+occupying'; then
+if "$JD" $JOPT -mr "$TD" | grep -Eq 'duplicate.+occupying'; then
 	echo "jdupesMr: PASS"
 else
 	echo "jdupesMr: FAIL"
 	FAIL=1
 fi
 
-if "$JD" $JOPT -M testdir | grep -C20 tinydupe2 | grep -Eq 'duplicate.+occupying'; then
+if "$JD" $JOPT -M "$TD" | grep -C20 tinydupe2 | grep -Eq 'duplicate.+occupying'; then
 	echo "jdupesM: PASS"
 else
 	echo "jdupesM: FAIL"
@@ -96,7 +100,7 @@ else
 fi
 
 # Null-delimited (-r0) output check
-if "$JD" $JOPT -r0 testdir | grep -aq 'larger_file_1'; then
+if "$JD" $JOPT -r0 "$TD" | grep -aq 'larger_file_1'; then
 	echo "jdupesR0: PASS"
 else
 	echo "jdupesR0: FAIL"
@@ -104,7 +108,7 @@ else
 fi
 
 # Hard-linked files are excluded by default (-H off): tinydupe2 matches, file100 does not
-if "$JD" $JOPT -r testdir | grep -q 'tinydupe2' && ! "$JD" $JOPT -r testdir | grep -q 'file100'; then
+if "$JD" $JOPT -r "$TD" | grep -q 'tinydupe2' && ! "$JD" $JOPT -r "$TD" | grep -q 'file100'; then
 	echo "jdupesHardlinkDefaultExclude: PASS"
 else
 	echo "jdupesHardlinkDefaultExclude: FAIL"
@@ -120,9 +124,9 @@ else
 fi
 
 # Multi-dir duplicate + unique sum invariant (Debian #1063079)
-JD_MDIR_DUP=$("$JD" $JOPT -r testdir/recursed_a testdir/recursed_c | grep testdir | wc -l)
-JD_MDIR_UNIQ=$("$JD" $JOPT -ru testdir/recursed_a testdir/recursed_c | grep testdir | wc -l)
-MDIR_TOTAL=$(find testdir/recursed_a testdir/recursed_c -type f -size +0 | wc -l)
+JD_MDIR_DUP=$("$JD" $JOPT -r "$TD"/recursed_a "$TD"/recursed_c | grep "$TD" | wc -l)
+JD_MDIR_UNIQ=$("$JD" $JOPT -ru "$TD"/recursed_a "$TD"/recursed_c | grep "$TD" | wc -l)
+MDIR_TOTAL=$(find "$TD"/recursed_a "$TD"/recursed_c -type f -size +0 | wc -l)
 if [ "$((JD_MDIR_DUP + JD_MDIR_UNIQ))" -eq "$MDIR_TOTAL" ]; then
 	echo "jdupesMultiDirUniqueSum: PASS"
 else
