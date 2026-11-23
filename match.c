@@ -176,7 +176,11 @@ file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict file)
       cross_copy_hashes(tree->file, file);
       return &tree->file;  /* linked files + -H switch */
     case -2: return NULL;  /* linked files, no -H switch */
-    case -6: return NULL;  /* breaklinks + not a linked pair */
+    case -6:               /* breaklinks + not a linked pair */
+      cantmatch = 1;
+      if (file->size != tree->file->size) cmpresult = (file->size < tree->file->size) ? -1 : 1;
+      else cmpresult = -1;
+      break;
 #endif
     case -3:    /* user order */
     case -4:    /* one filesystem */

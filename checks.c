@@ -28,7 +28,8 @@
  *  2 on an absolute match condition met
  * -3 on exclusion due to isolation
  * -4 on exclusion due to same filesystem
- * -5 on exclusion due to permissions */
+ * -5 on exclusion due to permissions
+ * -6 on break-links exclusion due to not being a linked pair */
 int check_conditions(const file_t * const restrict file1, const file_t * const restrict file2)
 {
   DBG(if (unlikely(file1 == NULL || file2 == NULL || file1->d_name == NULL || file2->d_name == NULL)) jc_nullptr("check_conditions()");)
@@ -69,8 +70,8 @@ int check_conditions(const file_t * const restrict file1, const file_t * const r
           || file1->gid != file2->gid
 #endif
           )) {
-    return -5;
     LOUD(fprintf(stderr, "check_conditions: no match: permissions/ownership differ (-p on)\n"));
+    return -5;
   }
 
   /* Hard link and symlink + '-s' check */
